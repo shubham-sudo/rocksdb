@@ -1,93 +1,189 @@
-// Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
-//  This source code is licensed under both the GPLv2 (found in the
-//  COPYING file in the root directory) and Apache 2.0 License
-//  (found in the LICENSE.Apache file in the root directory).
-
-#include <cstdio>
 #include <string>
-
+#include <iostream>
+#include <iomanip>
+#include <fstream>
 #include "rocksdb/db.h"
-#include "rocksdb/options.h"
 #include "rocksdb/slice.h"
+#include "rocksdb/cache.h"
+#include "rocksdb/options.h"
+#include "rocksdb/advanced_options.h"
+#include "rocksdb/table.h"
 
-using ROCKSDB_NAMESPACE::DB;
-using ROCKSDB_NAMESPACE::Options;
-using ROCKSDB_NAMESPACE::PinnableSlice;
-using ROCKSDB_NAMESPACE::ReadOptions;
-using ROCKSDB_NAMESPACE::Status;
-using ROCKSDB_NAMESPACE::WriteBatch;
-using ROCKSDB_NAMESPACE::WriteOptions;
+using namespace rocksdb;
+std::string kDBPath = "/tmp/cs561_project1";
 
-#if defined(OS_WIN)
-std::string kDBPath = "C:\\Windows\\TEMP\\rocksdb_simple_example";
-#else
-std::string kDBPath = "/tmp/rocksdb_simple_example";
-#endif
+inline void showProgress(const uint64_t& workload_size, const uint64_t& counter) {
+
+    if (counter / (workload_size / 100) >= 1) {
+        for (int i = 0; i < 104; i++) {
+            std::cout << "\b";
+            fflush(stdout);
+        }
+    }
+    for (int i = 0; i < counter / (workload_size / 100); i++) {
+        std::cout << "=";
+        fflush(stdout);
+    }
+    std::cout << std::setfill(' ') << std::setw(101 - counter / (workload_size / 100));
+    std::cout << counter * 100 / workload_size << "%";
+    fflush(stdout);
+
+    if (counter == workload_size) {
+        std::cout << "\n";
+        return;
+    }
+}
+
+void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
+    DB* db;
+
+    op.create_if_missing = true;
+    op.write_buffer_size = 2 * 1024 * 1024;
+
+    {
+        op.memtable_factory = std::shared_ptr<VectorRepFactory>(new VectorRepFactory);
+        op.allow_concurrent_memtable_write = false;
+    }
+
+    {
+        //op.memtable_factory = std::shared_ptr<SkipListFactory>(new SkipListFactory);
+    }
+
+    {
+        //op.memtable_factory = std::shared_ptr<MemTableRepFactory>(NewHashSkipListRepFactory());
+	//op.allow_concurrent_memtable_write = false;
+    }
+
+    {
+        //op.memtable_factory = std::shared_ptr<MemTableRepFactory>(NewHashLinkListRepFactory());
+	//op.allow_concurrent_memtable_write = false;
+    }
+
+    //BlockBasedTableOptions table_options;
+    //table_options.block_cache = NewLRUCache(8*1048576);
+    //op.table_factory.reset(NewBlockBasedTableFactory(table_options));
+
+    Status s = DB::Open(op, kDBPath, &db);
+    if (!s.ok()) std::cerr << s.ToString() << std::endl;
+    assert(s.ok());
+
+    // opening workload file for the first time
+    std::ifstream workload_file;
+    workload_file.open("workload.txt");
+    assert(workload_file);
+    // doing a first pass to get the workload size
+    uint64_t workload_size = 0;
+    std::string line;
+    while (std::getline(workload_file, line))
+        ++workload_size;
+    workload_file.close();
+
+    workload_file.open("workload.txt");
+    assert(workload_file);
+
+    // Clearing the system cache
+    std::cout << "Clearing system cache ..." << std::endl;
+    int clean_flag = system("sudo sh -c 'echo 3 >/proc/sys/vm/drop_caches'");
+    if (clean_flag) {
+        std::cerr << "Cannot clean the system cache" << std::endl;
+        exit(0);
+    }
+
+    Iterator* it = db->NewIterator(read_op); // for range reads
+    uint64_t counter = 0; // for progress bar
+
+    // time variables for measuring the time taken by the workload
+    std::chrono::time_point<std::chrono::system_clock> start, end;
+    std::chrono::time_point<std::chrono::system_clock> insert_start, insert_end;
+    std::chrono::time_point<std::chrono::system_clock> query_start, query_end;
+    std::chrono::duration<double> total_insert_time_elapsed;
+    std::chrono::duration<double> total_query_time_elapsed;
+    start = std::chrono::system_clock::now();
+
+    while (!workload_file.eof()) {
+        char instruction;
+        long key, start_key, end_key;
+        std::string value;
+        workload_file >> instruction;
+        switch (instruction)
+        {
+        case 'I': // insert
+            // start measuring the time taken by the insert
+            insert_start = std::chrono::system_clock::now();
+            workload_file >> key >> value;
+            // Put key-value
+            s = db->Put(write_op, std::to_string(key), value);
+            if (!s.ok()) std::cerr << s.ToString() << std::endl;
+            assert(s.ok());
+            counter++;
+            // end measuring the time taken by the insert
+            insert_end = std::chrono::system_clock::now();
+            total_insert_time_elapsed += insert_end - insert_start;
+            break;
+
+        case 'Q': // probe: point query
+            // start measuring the time taken by the query
+            query_start = std::chrono::system_clock::now();
+            workload_file >> key;
+            s = db->Get(read_op, std::to_string(key), &value);
+            //if (!s.ok()) std::cerr << s.ToString() << "key = " << key << std::endl;
+            // assert(s.ok());
+            counter++;
+            // end measuring the time taken by the query
+            query_end = std::chrono::system_clock::now();
+            total_query_time_elapsed += query_end - query_start;
+            break;
+
+        case 'S': // scan: range query
+            workload_file >> start_key >> end_key;
+            it->Refresh();
+            assert(it->status().ok());
+            for (it->Seek(std::to_string(start_key)); it->Valid(); it->Next()) {
+                //std::cout << "found key = " << it->key().ToString() << std::endl;
+                if (it->key().ToString() == std::to_string(end_key)) {
+                    break;
+                }
+            }
+            if (!it->status().ok()) {
+                std::cerr << it->status().ToString() << std::endl;
+            }
+            counter++;
+            break;
+
+        default:
+            std::cerr << "ERROR: Case match NOT found !!" << std::endl;
+            break;
+        }
+
+        if (workload_size < 100) workload_size = 100;
+        if (counter % (workload_size / 100) == 0) {
+            showProgress(workload_size, counter);
+        }
+    }
+
+    // end measuring the time taken by the workload
+    // and printing the results
+    end = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsed_seconds = end - start;
+    std::cout << "\n----------------------Workload Complete-----------------------" << std::endl;
+    std::cout << "Total time taken by workload = " << elapsed_seconds.count() << " seconds" << std::endl;
+    std::cout << "Total time taken by inserts = " << total_insert_time_elapsed.count() << " seconds" << std::endl;
+    std::cout << "Total time taken by queries = " << total_query_time_elapsed.count() << " seconds" << std::endl;
+
+    workload_file.close();
+    s = db->Close();
+    if (!s.ok()) std::cerr << s.ToString() << std::endl;
+    assert(s.ok());
+    delete db;
+
+    std::cout << "\n----------------------Closing DB-----------------------" << std::endl;
+
+    return;
+}
 
 int main() {
-  DB* db;
-  Options options;
-  // Optimize RocksDB. This is the easiest way to get RocksDB to perform well
-  options.IncreaseParallelism();
-  options.OptimizeLevelStyleCompaction();
-  // create the DB if it's not already present
-  options.create_if_missing = true;
-
-  // open DB
-  Status s = DB::Open(options, kDBPath, &db);
-  assert(s.ok());
-
-  // Put key-value
-  s = db->Put(WriteOptions(), "key1", "value");
-  assert(s.ok());
-  std::string value;
-  // get value
-  s = db->Get(ReadOptions(), "key1", &value);
-  assert(s.ok());
-  assert(value == "value");
-
-  // atomically apply a set of updates
-  {
-    WriteBatch batch;
-    batch.Delete("key1");
-    batch.Put("key2", value);
-    s = db->Write(WriteOptions(), &batch);
-  }
-
-  s = db->Get(ReadOptions(), "key1", &value);
-  assert(s.IsNotFound());
-
-  db->Get(ReadOptions(), "key2", &value);
-  assert(value == "value");
-
-  {
-    PinnableSlice pinnable_val;
-    db->Get(ReadOptions(), db->DefaultColumnFamily(), "key2", &pinnable_val);
-    assert(pinnable_val == "value");
-  }
-
-  {
-    std::string string_val;
-    // If it cannot pin the value, it copies the value to its internal buffer.
-    // The intenral buffer could be set during construction.
-    PinnableSlice pinnable_val(&string_val);
-    db->Get(ReadOptions(), db->DefaultColumnFamily(), "key2", &pinnable_val);
-    assert(pinnable_val == "value");
-    // If the value is not pinned, the internal buffer must have the value.
-    assert(pinnable_val.IsPinned() || string_val == "value");
-  }
-
-  PinnableSlice pinnable_val;
-  s = db->Get(ReadOptions(), db->DefaultColumnFamily(), "key1", &pinnable_val);
-  assert(s.IsNotFound());
-  // Reset PinnableSlice after each use and before each reuse
-  pinnable_val.Reset();
-  db->Get(ReadOptions(), db->DefaultColumnFamily(), "key2", &pinnable_val);
-  assert(pinnable_val == "value");
-  pinnable_val.Reset();
-  // The Slice pointed by pinnable_val is not valid after this point
-
-  delete db;
-
-  return 0;
+    Options options;
+    WriteOptions write_op;
+    ReadOptions read_op;
+    runWorkload(options, write_op, read_op);
 }
