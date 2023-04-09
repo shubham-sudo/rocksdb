@@ -38,7 +38,11 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
     DB* db;
 
     op.create_if_missing = true;
-    op.write_buffer_size = 2 * 1024 * 1024;
+    op.write_buffer_size = 512;  // 2 Bytes
+    op.max_bytes_for_level_base = 512;
+    op.max_bytes_for_level_multiplier = 2;
+    op.target_file_size_base = 256;
+    op.target_file_size_multiplier = 1;
 
     {
         op.memtable_factory = std::shared_ptr<VectorRepFactory>(new VectorRepFactory);
@@ -83,7 +87,7 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
 
     // Clearing the system cache
     std::cout << "Clearing system cache ..." << std::endl;
-    int clean_flag = system("sudo sh -c 'echo 3 >/proc/sys/vm/drop_caches'");
+    int clean_flag = system("echo qwerty123@ | sudo -S sh -c 'echo 3 >/proc/sys/vm/drop_caches'");
     if (clean_flag) {
         std::cerr << "Cannot clean the system cache" << std::endl;
         exit(0);
@@ -96,8 +100,10 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
     std::chrono::time_point<std::chrono::system_clock> start, end;
     std::chrono::time_point<std::chrono::system_clock> insert_start, insert_end;
     std::chrono::time_point<std::chrono::system_clock> query_start, query_end;
-    std::chrono::duration<double> total_insert_time_elapsed;
-    std::chrono::duration<double> total_query_time_elapsed;
+    std::chrono::time_point<std::chrono::system_clock> rquery_start, rquery_end;
+    std::chrono::duration<double> total_insert_time_elapsed {0};
+    std::chrono::duration<double> total_query_time_elapsed {0};
+    std::chrono::duration<double> total_rquery_time_elapsed {0};
     start = std::chrono::system_clock::now();
 
     while (!workload_file.eof()) {
@@ -105,10 +111,32 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
         long key, start_key, end_key;
         std::string value;
         workload_file >> instruction;
+
+        if (instruction == 'S') {
+            //######################## RocksDB STATS ###########################
+
+            std::string property;
+            std::string live_sst_property;
+            bool result = db->GetProperty("rocksdb.levelstats", &property);
+            bool live_sst_file_size = db->GetProperty("rocksdb.live-sst-files-size", &live_sst_property);
+
+            if (result){
+                std::cout << "Level statistics:\n" << property << std::endl;
+            } else {
+               std::cerr << "Failed to get level statistics." << std::endl;
+            }
+            if (live_sst_file_size) {
+                std::cout << live_sst_property << std::endl;
+            }
+
+            //##################################################################
+        }
+
         switch (instruction)
         {
         case 'I': // insert
             // start measuring the time taken by the insert
+            std::cout << "I AM IN INSERTS" << std::endl;
             insert_start = std::chrono::system_clock::now();
             workload_file >> key >> value;
             // Put key-value
@@ -123,6 +151,7 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
 
         case 'Q': // probe: point query
             // start measuring the time taken by the query
+            std::cout << "I AM IN POINT QUERY" << std::endl;
             query_start = std::chrono::system_clock::now();
             workload_file >> key;
             s = db->Get(read_op, std::to_string(key), &value);
@@ -135,11 +164,13 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
             break;
 
         case 'S': // scan: range query
+            std::cout << "I AM IN RANGE QUERY" << std::endl;
+            rquery_start = std::chrono::system_clock::now();
             workload_file >> start_key >> end_key;
             it->Refresh();
             assert(it->status().ok());
             for (it->Seek(std::to_string(start_key)); it->Valid(); it->Next()) {
-                //std::cout << "found key = " << it->key().ToString() << std::endl;
+                std::cout << "found key = " << it->key().ToString() << std::endl;
                 if (it->key().ToString() == std::to_string(end_key)) {
                     break;
                 }
@@ -148,6 +179,8 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
                 std::cerr << it->status().ToString() << std::endl;
             }
             counter++;
+            rquery_end = std::chrono::system_clock::now();
+            total_rquery_time_elapsed += rquery_end - rquery_start;
             break;
 
         default:
@@ -169,6 +202,7 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
     std::cout << "Total time taken by workload = " << elapsed_seconds.count() << " seconds" << std::endl;
     std::cout << "Total time taken by inserts = " << total_insert_time_elapsed.count() << " seconds" << std::endl;
     std::cout << "Total time taken by queries = " << total_query_time_elapsed.count() << " seconds" << std::endl;
+    std::cout << "Total time taken by rqueries = " << total_rquery_time_elapsed.count() << " seconds" << std::endl;
 
     workload_file.close();
     s = db->Close();
