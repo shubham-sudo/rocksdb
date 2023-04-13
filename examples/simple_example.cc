@@ -2,6 +2,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <thread>
 #include "rocksdb/db.h"
 #include "rocksdb/slice.h"
 #include "rocksdb/cache.h"
@@ -34,11 +35,45 @@ inline void showProgress(const uint64_t& workload_size, const uint64_t& counter)
     }
 }
 
+
+inline void sleep_for_ms(uint32_t ms) {
+   std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+}
+
+// Need to select timeout carefully
+// Completion not guaranteed
+bool CompactionMayAllComplete(DB *db) {
+    uint64_t pending_compact;
+    uint64_t pending_compact_bytes;
+    uint64_t running_compact;
+    bool success = db->GetIntProperty("rocksdb.compaction-pending", &pending_compact)
+                            && db->GetIntProperty("rocksdb.estimate-pending-compaction-bytes", &pending_compact_bytes)
+                            && db->GetIntProperty("rocksdb.num-running-compactions", &running_compact);
+    std::cout << "Compaction Running : " << success << std::endl;
+    std::cout << "Pending Compaction : " << pending_compact << std::endl;
+    std::cout << "Pending Compact Bytes : " << pending_compact_bytes << std::endl;
+    std::cout << "Running compaction : " << running_compact << std::endl;
+    while ((pending_compact &&  pending_compact_bytes != 0) || running_compact || !success) {
+        sleep_for_ms(200);
+        success = db->GetIntProperty("rocksdb.compaction-pending", &pending_compact)
+                            && db->GetIntProperty("rocksdb.estimate-pending-compaction-bytes", &pending_compact_bytes)
+                            && db->GetIntProperty("rocksdb.num-running-compactions", &running_compact);
+        // sleep_for_ms(60000);
+        // std::cout << "#############" << std::endl; 
+        // std::cout << "Pending Compaction : " << pending_compact << std::endl;
+        // std::cout << "Pending Compact Bytes : " << pending_compact_bytes << std::endl;
+        // std::cout << "Running compaction : " << running_compact << std::endl;
+    }
+    sleep_for_ms(60000);
+    return true;
+}
+
+
 void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
     DB* db;
 
     op.create_if_missing = true;
-    op.write_buffer_size = 512;  // 2 Bytes
+    op.write_buffer_size = 512;
     op.max_bytes_for_level_base = 512;
     op.max_bytes_for_level_multiplier = 2;
     op.target_file_size_base = 256;
@@ -112,7 +147,7 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
         std::string value;
         workload_file >> instruction;
 
-        if (instruction == 'S') {
+        if (instruction == 'S' || instruction == 'I') {
             //######################## RocksDB STATS ###########################
 
             std::string property;
@@ -121,9 +156,7 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
             bool live_sst_file_size = db->GetProperty("rocksdb.live-sst-files-size", &live_sst_property);
 
             if (result){
-                std::cout << "Level statistics:\n" << property << std::endl;
-            } else {
-               std::cerr << "Failed to get level statistics." << std::endl;
+                std::cout << property << std::endl;
             }
             if (live_sst_file_size) {
                 std::cout << live_sst_property << std::endl;
@@ -136,7 +169,6 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
         {
         case 'I': // insert
             // start measuring the time taken by the insert
-            std::cout << "I AM IN INSERTS" << std::endl;
             insert_start = std::chrono::system_clock::now();
             workload_file >> key >> value;
             // Put key-value
@@ -151,7 +183,6 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
 
         case 'Q': // probe: point query
             // start measuring the time taken by the query
-            std::cout << "I AM IN POINT QUERY" << std::endl;
             query_start = std::chrono::system_clock::now();
             workload_file >> key;
             s = db->Get(read_op, std::to_string(key), &value);
@@ -164,17 +195,22 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
             break;
 
         case 'S': // scan: range query
-            std::cout << "I AM IN RANGE QUERY" << std::endl;
             rquery_start = std::chrono::system_clock::now();
             workload_file >> start_key >> end_key;
             it->Refresh();
             assert(it->status().ok());
             for (it->Seek(std::to_string(start_key)); it->Valid(); it->Next()) {
-                std::cout << "found key = " << it->key().ToString() << std::endl;
+                // std::cout << "found key = " << it->key().ToString() << std::endl;
                 if (it->key().ToString() == std::to_string(end_key)) {
                     break;
                 }
             }
+            // Slice begin_key(std::to_string(start_key));
+            // Slice end_range(std::to_string(end_key));
+            // CompactRangeOptions croptions;
+
+            // db->CompactRange(croptions, &begin_key, &end_range);
+
             if (!it->status().ok()) {
                 std::cerr << it->status().ToString() << std::endl;
             }
@@ -205,6 +241,7 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
     std::cout << "Total time taken by rqueries = " << total_rquery_time_elapsed.count() << " seconds" << std::endl;
 
     workload_file.close();
+    CompactionMayAllComplete(db);
     s = db->Close();
     if (!s.ok()) std::cerr << s.ToString() << std::endl;
     assert(s.ok());

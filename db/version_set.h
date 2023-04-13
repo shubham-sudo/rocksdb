@@ -83,6 +83,7 @@ class MergeIteratorBuilder;
 class SystemClock;
 class ManifestTailer;
 class FilePickerMultiGet;
+struct CompactionInputFiles;
 
 // VersionEdit is always supposed to be valid and it is used to point at
 // entries in Manifest. Ideally it should not be used as a container to
@@ -834,6 +835,13 @@ class Version {
                             const FileOptions& soptions,
                             MergeIteratorBuilder* merger_iter_builder,
                             int level, bool allow_unprepared_value);
+
+  // @param read_options Must outlive any iterator built by
+  // `merger_iter_builder`.
+  void AddIteratorsForLevel(const ReadOptions& read_options,
+                            const FileOptions& soptions,
+                            MergeIteratorBuilder* merger_iter_builder,
+                            int level, bool allow_unprepared_value, std::vector<CompactionInputFiles>& input_files_to_compact);
 
   Status OverlapWithLevelIterator(const ReadOptions&, const FileOptions&,
                                   const Slice& smallest_user_key,

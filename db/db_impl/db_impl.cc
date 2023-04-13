@@ -24,6 +24,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include <iostream>
 
 #include "db/arena_wrapped_db_iter.h"
 #include "db/builder.h"
@@ -1848,6 +1849,7 @@ InternalIterator* DBImpl::NewInternalIterator(
           super_version->mutable_cf_options.prefix_extractor != nullptr,
       read_options.iterate_upper_bound);
   // Collect iterator for mutable memtable
+  // std::cout << "[Shubham] Collecting iterator for mutable memtable" << std::endl;
   auto mem_iter = super_version->mem->NewIterator(read_options, arena);
   Status s;
   if (!read_options.ignore_range_deletions) {
@@ -1870,12 +1872,14 @@ InternalIterator* DBImpl::NewInternalIterator(
 
   // Collect all needed child iterators for immutable memtables
   if (s.ok()) {
+    // std::cout << "[Shubham] Collecting iterator for immutable memtables" << std::endl;
     super_version->imm->AddIterators(read_options, &merge_iter_builder,
                                      !read_options.ignore_range_deletions);
   }
   TEST_SYNC_POINT_CALLBACK("DBImpl::NewInternalIterator:StatusCallback", &s);
   if (s.ok()) {
     // Collect iterators for files in L0 - Ln
+    // std::cout << "[Shubham] Collecting all iterator for levels" << std::endl;
     if (read_options.read_tier != kMemtableTier) {
       super_version->current->AddIterators(read_options, file_options_,
                                            &merge_iter_builder,
@@ -3405,6 +3409,8 @@ ArenaWrappedDBIter* DBImpl::NewIteratorImpl(const ReadOptions& read_options,
                                             bool expose_blob_index,
                                             bool allow_refresh) {
   SuperVersion* sv = cfd->GetReferencedSuperVersion(this);
+  // std::cout << "[Shubham] Here I have SuperVersion pointer" << std::endl;
+  // std::cout << "[Shubham] ... Pulled from (cfd)->GerReferencedSuperVersion" << std::endl;
 
   TEST_SYNC_POINT("DBImpl::NewIterator:1");
   TEST_SYNC_POINT("DBImpl::NewIterator:2");
@@ -3471,6 +3477,8 @@ ArenaWrappedDBIter* DBImpl::NewIteratorImpl(const ReadOptions& read_options,
       snapshot, sv->mutable_cf_options.max_sequential_skip_in_iterations,
       sv->version_number, read_callback, this, cfd, expose_blob_index,
       read_options.snapshot != nullptr ? false : allow_refresh);
+    
+  // std::cout << "[Shubham] Creating New ArenaWrapped Internal Iterator" << std::endl;
 
   InternalIterator* internal_iter = NewInternalIterator(
       db_iter->GetReadOptions(), cfd, sv, db_iter->GetArena(), snapshot,

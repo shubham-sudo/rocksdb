@@ -8,6 +8,7 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
 #include "db/version_set.h"
+#include "db/compaction/compaction.h"
 
 #include <algorithm>
 #include <array>
@@ -19,6 +20,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <iostream>
 
 #include "db/blob/blob_fetcher.h"
 #include "db/blob/blob_file_cache.h"
@@ -971,6 +973,14 @@ class LevelIterator final : public InternalIterator {
     if (range_tombstone_iter_ptr_) {
       *range_tombstone_iter_ptr_ = &range_tombstone_iter_;
     }
+
+    std::cout << "Printing one level files " << std::endl;
+      std::cout << "##############################" << std::endl; 
+    for (size_t i = 0; i < flevel_->num_files; i++) {
+      std::cout << "|* File No. : " << i << " SmallKey : " << flevel_->files[i].smallest_key.data_ << " LargeKey : " << flevel_->files[i].largest_key.data_ << " *|";
+    }
+    std::cout << "\n##############################" << std::endl;
+
   }
 
   ~LevelIterator() override { delete file_iter_.Set(nullptr); }
@@ -1087,6 +1097,8 @@ class LevelIterator final : public InternalIterator {
   // range_tombstone_iter_ is updated with a range tombstone iterator
   // into the new file. Old range tombstone iterator is cleared.
   InternalIterator* NewFileIterator() {
+    std::cout << "[Shubham] InitFileIterator for file index : " << file_index_ << std::endl;
+    std::cout << "[Shubham] Currently file_iter_ is : " << file_iter_.iter() << std::endl;
     assert(file_index_ < flevel_->num_files);
     auto file_meta = flevel_->files[file_index_];
     if (should_sample_) {
@@ -1196,6 +1208,14 @@ void LevelIterator::TrySetDeleteRangeSentinel(const Slice& boundary_key) {
 }
 
 void LevelIterator::Seek(const Slice& target) {
+  // std::cout << "[Shubham] ------------- Performing Seek for target : " << target.data_  << " ------------- " << std::endl;
+  // std::cout << "[Shubham] Current file_index_ is : " << file_index_ << std::endl;
+  // std::cout << "[Shubham] File at the file_size : " << flevel_->files[file_index_].fd.file_size << std::endl;
+  // std::cout << "[Shubham] File at the file_metadata : " << flevel_->files[file_index_].file_metadata << std::endl;
+  // std::cout << "[Shubham] File path id : " << flevel_->files->fd.GetPathId() << std::endl;
+  // std::cout << "[Shubham] File Number : " << flevel_->files->fd.GetNumber() << std::endl;
+  // std::cout << "[Shubham] Files[file_index_] path id : " << flevel_->files[file_index_].fd.GetPathId() << std::endl;
+  // std::cout << "[Shubham] File[file_index_] Number : " << flevel_->files[file_index_].fd.GetNumber() << std::endl;
   prefix_exhausted_ = false;
   ClearSentinel();
   // Check whether the seek key fall under the same file
@@ -1356,6 +1376,10 @@ void LevelIterator::SeekToLast() {
 }
 
 void LevelIterator::Next() {
+  // std::cout << "[Shubham] ------------- Performing Next ------------- " << std::endl;
+  // std::cout << "[Shubham] Current file_index_ is : " << file_index_ << std::endl;
+  // std::cout << "[Shubham] File at the file_size : " << flevel_->files[file_index_].fd.file_size << std::endl;
+  // std::cout << "[Shubham] File at the file_metadata : " << flevel_->files[file_index_].file_metadata << std::endl;
   assert(Valid());
   if (to_return_sentinel_) {
     // file_iter_ is at EOF already when to_return_sentinel_
@@ -1371,6 +1395,10 @@ void LevelIterator::Next() {
 
 bool LevelIterator::NextAndGetResult(IterateResult* result) {
   assert(Valid());
+  // std::cout << "[Shubham] ------------- Performing Next And Get Result ------------- " << std::endl;
+  // std::cout << "[Shubham] Current file_index_ is : " << file_index_ << std::endl;
+  // std::cout << "[Shubham] File at the file_size : " << flevel_->files[file_index_].fd.file_size << std::endl;
+  // std::cout << "[Shubham] File at the file_metadata : " << flevel_->files[file_index_].file_metadata << std::endl;
   // file_iter_ is at EOF already when to_return_sentinel_
   bool is_valid = !to_return_sentinel_ && file_iter_.NextAndGetResult(result);
   if (!is_valid) {
@@ -1426,14 +1454,18 @@ bool LevelIterator::SkipEmptyFileForward() {
                IterBoundCheck::kOutOfBound))) {
     seen_empty_file = true;
     // Move to next file
+    // std::cout << "[Shubham] Moving to next file ..." << std::endl;
+    // std::cout << "[Shubham] Previous file was at file_index_ : " << file_index_ << std::endl;
     if (file_index_ >= flevel_->num_files - 1 ||
         KeyReachedUpperBound(file_smallest_key(file_index_ + 1)) ||
         prefix_exhausted_) {
+      // std::cout << "[Shubham] We found the end here : " << file_largest_key(file_index_).data_ << std::endl;
       SetFileIterator(nullptr);
       ClearRangeTombstoneIter();
       break;
     }
     // may init a new *range_tombstone_iter
+    // std::cout << "[Shubham] Moving to file_index + 1 : " << file_index_ + 1 << std::endl;
     InitFileIterator(file_index_ + 1);
     // We moved to a new SST file
     // Seek range_tombstone_iter_ to reset its !Valid() default state.
@@ -1504,6 +1536,8 @@ void LevelIterator::SetFileIterator(InternalIterator* iter) {
 }
 
 void LevelIterator::InitFileIterator(size_t new_file_index) {
+  std::cout << "[Shubham] InitFileIterator for file index : " << new_file_index << ", " << flevel_->files->file_metadata << std::endl;
+  std::cout << "[Shubham] Currently file_iter_ is : " << file_iter_.iter() << std::endl;
   if (new_file_index >= flevel_->num_files) {
     file_index_ = new_file_index;
     SetFileIterator(nullptr);
@@ -1524,6 +1558,7 @@ void LevelIterator::InitFileIterator(size_t new_file_index) {
       SetFileIterator(iter);
     }
   }
+  // std::cout << "[Shubham] Now file_iter_ is : " << file_iter_.iter() << std::endl;
 }
 }  // anonymous namespace
 
@@ -1898,17 +1933,42 @@ void Version::AddIterators(const ReadOptions& read_options,
                            MergeIteratorBuilder* merge_iter_builder,
                            bool allow_unprepared_value) {
   assert(storage_info_.finalized_);
+  // std::cout << "[Shubham] Number of level in LSM Tree : " << storage_info_.num_non_empty_levels() << std::endl;
+
+  // #############################################################
+  // Collect All Files for the range and compact with CompactFiles
+  std::vector<CompactionInputFiles> input_files_to_compact{};
+  int flag = 0;
+  // #############################################################
 
   for (int level = 0; level < storage_info_.num_non_empty_levels(); level++) {
     AddIteratorsForLevel(read_options, soptions, merge_iter_builder, level,
-                         allow_unprepared_value);
+                         allow_unprepared_value, input_files_to_compact);
+    flag++;
   }
+
+  // #############################################################
+  if (flag > 1) {
+    CompactionOptions coptions;
+    int compact_at = 6;
+    MutableCFOptions mcfoptions;
+    MutableDBOptions mdboptions;
+    uint32_t output_path_id = 6;
+
+    CompactionPicker* cp = cfd_->compaction_picker();
+    std::cout << "Triggering Manual Compaction" << std::endl;
+    cp->CompactFiles(coptions, input_files_to_compact, compact_at, &storage_info_, mcfoptions, mdboptions, output_path_id);
+  }
+  // Compact files here
+  // #############################################################
+
 }
 
 void Version::AddIteratorsForLevel(const ReadOptions& read_options,
                                    const FileOptions& soptions,
                                    MergeIteratorBuilder* merge_iter_builder,
-                                   int level, bool allow_unprepared_value) {
+                                   int level, bool allow_unprepared_value, std::vector<CompactionInputFiles> &input_files_to_compact) {
+  // std::cout << "[Shubham] Adding Iterator for Level Number : " << level << std::endl;
   assert(storage_info_.finalized_);
   if (level >= storage_info_.num_non_empty_levels()) {
     // This is an empty level
@@ -1923,6 +1983,16 @@ void Version::AddIteratorsForLevel(const ReadOptions& read_options,
   auto* arena = merge_iter_builder->GetArena();
   if (level == 0) {
     // Merge all level zero files together since they may overlap
+
+    // std::cout << "[Shubham] Adding Iterators for Level = 0" << std::endl;
+    // std::cout << "[Shubham] Here is the description for Level : " << std::endl;
+    // std::cout << "[Shubham] LevelFilesBrief(level) # of files : " << storage_info_.LevelFilesBrief(level).num_files << std::endl;
+    // std::cout << "[Shubham] LevelFilesBrief(level) Reference : " << storage_info_.LevelFilesBrief(level).files << std::endl;
+    // std::cout << "[Shubham] LevelFilesBrief(level) FileSize : " << storage_info_.LevelFilesBrief(level).files->fd.file_size << std::endl;
+    // std::cout << "[Shubham] LevelFilesBrief(level) FileMetadata : " << storage_info_.LevelFilesBrief(level).files->file_metadata << std::endl;
+    // std::cout << "[Shubham] LevelFilesBrief(level) SmallestKeyData : " << storage_info_.LevelFilesBrief(level).files->smallest_key.data_ << std::endl;
+    // std::cout << "[Shubham] LevelFilesBrief(level) LargestKeyData : " << storage_info_.LevelFilesBrief(level).files->largest_key.data_ << std::endl;
+
     TruncatedRangeDelIterator* tombstone_iter = nullptr;
     for (size_t i = 0; i < storage_info_.LevelFilesBrief(0).num_files; i++) {
       const auto& file = storage_info_.LevelFilesBrief(0).files[i];
@@ -1956,6 +2026,15 @@ void Version::AddIteratorsForLevel(const ReadOptions& read_options,
     // For levels > 0, we can use a concatenating iterator that sequentially
     // walks through the non-overlapping files in the level, opening them
     // lazily.
+    // std::cout << "[Shubham] ------------- Adding Iterators for Level > 0's -------------" << std::endl;
+    // std::cout << "[Shubham] Here is the description for Level : " << level << std::endl;
+    // std::cout << "[Shubham] LevelFilesBrief(level) # of files : " << storage_info_.LevelFilesBrief(level).num_files << std::endl;
+    // std::cout << "[Shubham] LevelFilesBrief(level) Reference : " << storage_info_.LevelFilesBrief(level).files << std::endl;
+    // std::cout << "[Shubham] LevelFilesBrief(level) FileSize : " << storage_info_.LevelFilesBrief(level).files->fd.file_size << std::endl;
+    // std::cout << "[Shubham] LevelFilesBrief(level) FileMetadata : " << storage_info_.LevelFilesBrief(level).files->file_metadata << std::endl;
+    // std::cout << "[Shubham] File Number : " << storage_info_.LevelFilesBrief(level).files->fd.GetNumber() << std::endl;
+    // std::cout << "[Shubham] LevelFilesBrief(level) SmallestKeyData : " << storage_info_.LevelFilesBrief(level).files->smallest_key.data_ << std::endl;
+    // std::cout << "[Shubham] LevelFilesBrief(level) LargestKeyData : " << storage_info_.LevelFilesBrief(level).files->largest_key.data_ << std::endl;
     auto* mem = arena->AllocateAligned(sizeof(LevelIterator));
     TruncatedRangeDelIterator*** tombstone_iter_ptr = nullptr;
     auto level_iter = new (mem) LevelIterator(
@@ -1966,6 +2045,18 @@ void Version::AddIteratorsForLevel(const ReadOptions& read_options,
         TableReaderCaller::kUserIterator, IsFilterSkipped(level), level,
         /*range_del_agg=*/nullptr, /*compaction_boundaries=*/nullptr,
         allow_unprepared_value, &tombstone_iter_ptr);
+    
+      CompactionInputFiles cif;
+      cif.level = level;
+      std::vector<FileMetaData*> vec_files_meta_data;
+      for (size_t i = 0; i < storage_info_.LevelFilesBrief(level).num_files; i++) {
+        vec_files_meta_data.push_back(storage_info_.LevelFilesBrief(level).files[i].file_metadata);
+      }
+      cif.files = vec_files_meta_data;
+
+      input_files_to_compact.push_back(cif);
+
+
     if (read_options.ignore_range_deletions) {
       merge_iter_builder->AddIterator(level_iter);
     } else {
