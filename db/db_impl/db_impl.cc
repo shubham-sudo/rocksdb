@@ -5970,13 +5970,9 @@ void DBImpl::RecordSeqnoToTimeMapping() {
 }
 
 
-void DBImpl::RangeQueryDrivenCompaction(ColumnFamilyHandle* cfh, Slice& start_key, Slice& end_key){
+void DBImpl::RangeQueryDrivenCompaction(Slice& start_key, Slice& end_key){
     
     ColumnFamilyHandle* cfh_ = this->DefaultColumnFamily();
-
-    if (cfh != nullptr) {
-      cfh_ = cfh;
-    }
 
     auto cfh__ = static_cast_with_check<ColumnFamilyHandleImpl>(cfh_);
     ColumnFamilyData* cfd_ = cfh__->cfd();

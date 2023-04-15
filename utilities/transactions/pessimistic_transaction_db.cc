@@ -603,6 +603,10 @@ Status PessimisticTransactionDB::Write(const WriteOptions& opts,
   return WriteWithConcurrencyControl(opts, updates);
 }
 
+void PessimisticTransactionDB::RangeQueryDrivenCompaction(Slice& start_key, Slice& end_key) {
+  db_->RangeQueryDrivenCompaction(start_key, end_key);
+}
+
 Status WriteCommittedTxnDB::Write(const WriteOptions& opts,
                                   WriteBatch* updates) {
   Status s = FailIfBatchHasTs(updates);

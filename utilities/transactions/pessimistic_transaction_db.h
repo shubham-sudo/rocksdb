@@ -65,6 +65,9 @@ class PessimisticTransactionDB : public TransactionDB {
   virtual Status Merge(const WriteOptions& options,
                        ColumnFamilyHandle* column_family, const Slice& key,
                        const Slice& value) override;
+  
+  using StackableDB::RangeQueryDrivenCompaction;
+  virtual void RangeQueryDrivenCompaction(Slice& start_key, Slice& end_key) override;
 
   using TransactionDB::Write;
   virtual Status Write(const WriteOptions& opts, WriteBatch* updates) override;

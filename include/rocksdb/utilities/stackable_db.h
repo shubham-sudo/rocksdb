@@ -238,6 +238,11 @@ class StackableDB : public DB {
     return db_->Merge(options, column_family, key, ts, value);
   }
 
+  using DB::RangeQueryDrivenCompaction;
+  virtual void RangeQueryDrivenCompaction(Slice& start_key, Slice& end_key) override {
+    return db_->RangeQueryDrivenCompaction(start_key, end_key);
+  }
+
   virtual Status Write(const WriteOptions& opts, WriteBatch* updates) override {
     return db_->Write(opts, updates);
   }

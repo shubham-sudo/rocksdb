@@ -211,7 +211,7 @@ class DBImpl : public DB {
                const Slice& key, const Slice& ts, const Slice& value) override;
 
   using DB::RangeQueryDrivenCompaction;
-  void RangeQueryDrivenCompaction(ColumnFamilyHandle* cfh, Slice& start_key, Slice& end_key) override;
+  void RangeQueryDrivenCompaction(Slice& start_key, Slice& end_key) override;
 
   int GetHighestLevelFromCompact(std::vector<CompactionInputFiles> files);
   std::vector<CompactionInputFiles> FilterFileThatCanBeCompacted(std::vector<CompactionInputFiles> all_files, 
