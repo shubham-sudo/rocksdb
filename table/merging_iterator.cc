@@ -7,7 +7,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
-#include <iostream>
 
 #include "table/merging_iterator.h"
 
@@ -79,13 +78,7 @@ class MergingIterator : public InternalIterator {
   }
 
   virtual void AddIterator(InternalIterator* iter) {
-    // std::cout << "[Shubham] Size of children_ earlier : " << children_.size() << std::endl;
     children_.emplace_back(children_.size(), iter);
-    // std::cout << "[Shubham] Size of children_ after emplace : " << children_.size() << std::endl;
-
-    for (size_t i = 0; i < children_.size(); i++) {
-      // std::cout << "[Shubham] Trying to print children_ : " << i << children_[i].level << std::endl;
-    }
 
     if (pinned_iters_mgr_) {
       iter->SetPinnedItersMgr(pinned_iters_mgr_);
@@ -317,7 +310,7 @@ class MergingIterator : public InternalIterator {
     // holds after this call, and minHeap_.top().iter points to the
     // first key >= target among children_ that is not covered by any range
     // tombstone.
-    // std::cout << "[Shubham] Seeking inside MergingIterator for target : " << target.data_ << std::endl;
+
     SeekImpl(target);
     FindNextVisibleKey();
 
@@ -494,7 +487,6 @@ class MergingIterator : public InternalIterator {
 
     explicit HeapItem(size_t _level, InternalIteratorBase<Slice>* _iter)
         : level(_level), type(Type::ITERATOR) {
-      // std::cout << "[Shubham] Creating new HeapItem with size : " << _level << " Iter : " << _iter << std::endl;
       iter.Set(_iter);
     }
 

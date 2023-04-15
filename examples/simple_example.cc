@@ -64,10 +64,9 @@ bool CompactionMayAllComplete(DB *db) {
         // std::cout << "Pending Compact Bytes : " << pending_compact_bytes << std::endl;
         // std::cout << "Running compaction : " << running_compact << std::endl;
     }
-    sleep_for_ms(60000);
+    sleep_for_ms(30000);
     return true;
 }
-
 
 void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
     DB* db;
@@ -146,6 +145,8 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
         long key, start_key, end_key;
         std::string value;
         workload_file >> instruction;
+        Slice _start_key{};
+        Slice _end_key{};
 
         if (instruction == 'S' || instruction == 'I') {
             //######################## RocksDB STATS ###########################
@@ -205,11 +206,9 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
                     break;
                 }
             }
-            // Slice begin_key(std::to_string(start_key));
-            // Slice end_range(std::to_string(end_key));
-            // CompactRangeOptions croptions;
-
-            // db->CompactRange(croptions, &begin_key, &end_range);
+            _start_key = std::to_string(start_key);
+            _end_key = std::to_string(end_key);
+            db->RangeQueryDrivenCompaction(nullptr, _start_key, _end_key);
 
             if (!it->status().ok()) {
                 std::cerr << it->status().ToString() << std::endl;

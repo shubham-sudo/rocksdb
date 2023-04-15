@@ -83,6 +83,12 @@ struct JobContext;
 struct ExternalSstFileInfo;
 struct MemTableInfo;
 
+struct TrackLevels{
+  int level;
+  Slice start;
+  Slice end;
+};
+
 // Class to maintain directories for all database paths other than main one.
 class Directories {
  public:
@@ -203,6 +209,18 @@ class DBImpl : public DB {
                const Slice& key, const Slice& value) override;
   Status Merge(const WriteOptions& options, ColumnFamilyHandle* column_family,
                const Slice& key, const Slice& ts, const Slice& value) override;
+
+  using DB::RangeQueryDrivenCompaction;
+  void RangeQueryDrivenCompaction(ColumnFamilyHandle* cfh, Slice& start_key, Slice& end_key) override;
+
+  int GetHighestLevelFromCompact(std::vector<CompactionInputFiles> files);
+  std::vector<CompactionInputFiles> FilterFileThatCanBeCompacted(std::vector<CompactionInputFiles> all_files, 
+                                                              Slice& start_key, Slice& end_key);
+  std::vector<CompactionInputFiles> HighestFilesSizeAcrossLevels(std::vector<std::vector<CompactionInputFiles>> files_to_be_compacted);
+  std::vector<CompactionInputFiles> FilterOnlyInRangeFiles(std::vector<CompactionInputFiles>& all_files, 
+                                                        Slice& start_key, Slice& end_key);
+  std::vector<CompactionInputFiles> FilesToBeCompactedAcrossLevels(std::vector<CompactionInputFiles> all_files, 
+                                                                std::queue<TrackLevels>& track_levels);
 
   using DB::Delete;
   Status Delete(const WriteOptions& options, ColumnFamilyHandle* column_family,
