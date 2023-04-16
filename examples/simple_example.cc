@@ -72,15 +72,15 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
     DB* db;
 
     op.create_if_missing = true;
-    op.write_buffer_size = 512;
-    op.max_bytes_for_level_base = 512;
+    op.write_buffer_size = 2 * 1024 * 1024;
+    op.max_bytes_for_level_base = 8 * 1024 * 1024;
     op.max_bytes_for_level_multiplier = 2;
-    op.target_file_size_base = 256;
+    op.target_file_size_base = 2 * 1024 * 1024;
     op.target_file_size_multiplier = 1;
 
     {
-        op.memtable_factory = std::shared_ptr<VectorRepFactory>(new VectorRepFactory);
-        op.allow_concurrent_memtable_write = false;
+        // op.memtable_factory = std::shared_ptr<VectorRepFactory>(new VectorRepFactory);
+        // op.allow_concurrent_memtable_write = false;
     }
 
     {
@@ -93,8 +93,8 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
     }
 
     {
-        //op.memtable_factory = std::shared_ptr<MemTableRepFactory>(NewHashLinkListRepFactory());
-	//op.allow_concurrent_memtable_write = false;
+        op.memtable_factory = std::shared_ptr<MemTableRepFactory>(NewHashLinkListRepFactory());
+	    op.allow_concurrent_memtable_write = false;
     }
 
     //BlockBasedTableOptions table_options;
