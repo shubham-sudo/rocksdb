@@ -6025,7 +6025,7 @@ void DBImpl::RangeQueryDrivenCompaction(Slice& start_key, Slice& end_key){
 
     }
 
-    std::vector<CompactionInputFiles> files_to_be_compacted = FilterFileThatCanBeCompacted(all_input_files, start_key, end_key);
+    std::vector<CompactionInputFiles> files_to_be_compacted = FilterFileThatCanBeCompacted(all_input_files, start_key, end_key, cfd_);
 
     if (files_to_be_compacted.size() > 0) {
 
@@ -6055,8 +6055,8 @@ int DBImpl::GetHighestLevelFromCompact(std::vector<CompactionInputFiles> files) 
 }
 
 std::vector<CompactionInputFiles> DBImpl::FilterFileThatCanBeCompacted(std::vector<CompactionInputFiles> all_files, 
-                                                              Slice& start_key, Slice& end_key) {
-  std::vector<CompactionInputFiles> in_range_files = FilterOnlyInRangeFiles(all_files, start_key, end_key);
+                                                              Slice& start_key, Slice& end_key, ColumnFamilyData* cfd_) {
+  std::vector<CompactionInputFiles> in_range_files = FilterOnlyInRangeFiles(all_files, start_key, end_key, cfd_);
   std::vector<std::vector<CompactionInputFiles>> files_that_can_be_compacted{};
   std::queue<TrackLevels> track_levels_queue{};
 
@@ -6147,7 +6147,7 @@ std::vector<CompactionInputFiles> DBImpl::HighestFilesSizeAcrossLevels(std::vect
 
 
 std::vector<CompactionInputFiles> DBImpl::FilterOnlyInRangeFiles(std::vector<CompactionInputFiles>& all_files, 
-                                                        Slice& start_key, Slice& end_key) {
+                                                        Slice& start_key, Slice& end_key, ColumnFamilyData* cfd_) {
 
   std::vector<CompactionInputFiles> filtered_files{};
 
@@ -6157,8 +6157,8 @@ std::vector<CompactionInputFiles> DBImpl::FilterOnlyInRangeFiles(std::vector<Com
     ncfi.level = cfi.level;
 
     for (auto fmd : cfi.files) {
-      if ((fmd->smallest.user_key().compare(end_key) <= 0) && (fmd->largest.user_key().compare(start_key) >= 0)){
-        cfi.files.push_back(fmd);
+      if ((cfd_->internal_comparator().user_comparator()->Compare(fmd->smallest.user_key(), end_key) <= 0) && cfd_->internal_comparator().user_comparator()->Compare(fmd->largest.user_key(), start_key) >= 0){
+        cfi.files.push_back(fmd);        
       }
     }
 

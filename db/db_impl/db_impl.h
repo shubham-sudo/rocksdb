@@ -215,10 +215,10 @@ class DBImpl : public DB {
 
   int GetHighestLevelFromCompact(std::vector<CompactionInputFiles> files);
   std::vector<CompactionInputFiles> FilterFileThatCanBeCompacted(std::vector<CompactionInputFiles> all_files, 
-                                                              Slice& start_key, Slice& end_key);
+                                                              Slice& start_key, Slice& end_key, ColumnFamilyData* cfd_);
   std::vector<CompactionInputFiles> HighestFilesSizeAcrossLevels(std::vector<std::vector<CompactionInputFiles>> files_to_be_compacted);
   std::vector<CompactionInputFiles> FilterOnlyInRangeFiles(std::vector<CompactionInputFiles>& all_files, 
-                                                        Slice& start_key, Slice& end_key);
+                                                        Slice& start_key, Slice& end_key, ColumnFamilyData* cfd_);
   std::vector<CompactionInputFiles> FilesToBeCompactedAcrossLevels(std::vector<CompactionInputFiles> all_files, 
                                                                 std::queue<TrackLevels>& track_levels);
 
