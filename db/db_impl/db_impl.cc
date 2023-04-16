@@ -4640,6 +4640,8 @@ Status DB::DestroyColumnFamilyHandle(ColumnFamilyHandle* column_family) {
   return Status::OK();
 }
 
+void DB::RangeQueryDrivenCompaction(Slice& /*slice*/, Slice& /*slice*/){}
+
 DB::~DB() {}
 
 Status DBImpl::Close() {

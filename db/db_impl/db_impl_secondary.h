@@ -153,6 +153,11 @@ class DBImplSecondary : public DBImpl {
     return Status::NotSupported("Not supported operation in secondary mode.");
   }
 
+  using DBImpl::RangeQueryDrivenCompaction;
+  void RangeQueryDrivenCompaction(Slice& /*key*/, Slice& /*key*/) override {
+    // nothing to do so far
+  }
+
   using DBImpl::Delete;
   Status Delete(const WriteOptions& /*options*/,
                 ColumnFamilyHandle* /*column_family*/,

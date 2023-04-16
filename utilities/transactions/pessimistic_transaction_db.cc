@@ -603,8 +603,8 @@ Status PessimisticTransactionDB::Write(const WriteOptions& opts,
   return WriteWithConcurrencyControl(opts, updates);
 }
 
-void PessimisticTransactionDB::RangeQueryDrivenCompaction(Slice& start_key, Slice& end_key) {
-  db_->RangeQueryDrivenCompaction(start_key, end_key);
+void PessimisticTransactionDB::RangeQueryDrivenCompaction(Slice& /*key*/, Slice& /*key*/) {
+  // nothing to do so far
 }
 
 Status WriteCommittedTxnDB::Write(const WriteOptions& opts,

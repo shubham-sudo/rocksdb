@@ -239,7 +239,7 @@ class StackableDB : public DB {
   }
 
   using DB::RangeQueryDrivenCompaction;
-  virtual void RangeQueryDrivenCompaction(Slice& start_key, Slice& end_key) override {
+  void RangeQueryDrivenCompaction(Slice& start_key, Slice& end_key) override {
     return db_->RangeQueryDrivenCompaction(start_key, end_key);
   }
 
