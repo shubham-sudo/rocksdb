@@ -241,6 +241,19 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
 
     workload_file.close();
     CompactionMayAllComplete(db);
+
+    std::string property;
+    std::string live_sst_property;
+    bool result = db->GetProperty("rocksdb.levelstats", &property);
+    bool live_sst_file_size = db->GetProperty("rocksdb.live-sst-files-size", &live_sst_property);
+
+    if (result){
+        std::cout << property << std::endl;
+    }
+    if (live_sst_file_size) {
+        std::cout << live_sst_property << std::endl;
+    }
+
     s = db->Close();
     if (!s.ok()) std::cerr << s.ToString() << std::endl;
     assert(s.ok());
