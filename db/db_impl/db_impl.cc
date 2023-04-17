@@ -6158,7 +6158,7 @@ std::vector<CompactionInputFiles> DBImpl::FilterOnlyInRangeFiles(std::vector<Com
 
     for (auto fmd : cfi.files) {
       if ((cfd_->internal_comparator().user_comparator()->Compare(fmd->smallest.user_key(), end_key) <= 0) && cfd_->internal_comparator().user_comparator()->Compare(fmd->largest.user_key(), start_key) >= 0){
-        cfi.files.push_back(fmd);        
+        ncfi.files.push_back(fmd);        
       }
     }
 
