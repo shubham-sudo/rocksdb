@@ -95,3 +95,7 @@ fuzz/crash-*
 
 cmake-build-*
 third-party/folly/
+
+
+# __working_example
+*/__working_example/*

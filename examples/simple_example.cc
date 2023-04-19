@@ -133,6 +133,7 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
             _start_key = Slice(std::to_string(start_key));
             _end_key = Slice(std::to_string(end_key));
             db->RangeQueryDrivenCompaction(_start_key, _end_key);
+            CompactionMayAllComplete(db);
 
             if (!it->status().ok()) {
                 std::cerr << it->status().ToString() << std::endl;
@@ -208,7 +209,7 @@ void configCompactionOptions(Options& op) {
 
     op.create_if_missing = true;
 
-    // disabling auto compaction
+    // toggle auto compaction
     op.compaction_style = kCompactionStyleLevel;
     op.disable_auto_compactions = false;
 
