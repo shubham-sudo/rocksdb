@@ -2,12 +2,17 @@ import os
 import shutil
 import subprocess
 import argparse
-#TODO: Add args for deleting workloads.
-#TODO: Add args for make clean.
+
 def run_make_command(directory):
     current_dir = os.getcwd()
     os.chdir(directory)
     subprocess.run("make -j4", shell=True, check=True)
+    os.chdir(current_dir)
+
+def run_make__clean_command(directory):
+    current_dir = os.getcwd()
+    os.chdir(directory)
+    subprocess.run("make clean", shell=True, check=True)
     os.chdir(current_dir)
 
 def delete_files_in_directory(directory):
@@ -16,14 +21,27 @@ def delete_files_in_directory(directory):
     else:
         print(f"Directory '{directory}' does not exist.")
 
+def delete_workloads():
+    current_dir = os.getcwd()
+    for item in os.listdir(current_dir):
+        if os.path.isdir(item) and item.startswith('load_gen_'):
+            workload_path = os.path.join(item, 'workload.txt')
+            if os.path.exists(workload_path):
+                print(f"Deleting folder: {item}")
+                shutil.rmtree(item)
+
 def main(args):
     input_file = "workloads_info.txt"
     output_file = "output.txt"
 
+    if args.make_clean:
+        print("Running make clean in all directories")
+        run_make__clean_command("./rocksdb")
+    
     # Run make commands in specified directories
-    run_make_command("./rocksdb")
-    run_make_command("./rocksdb/examples")
-    run_make_command("./K-V-Workload-Generator")
+    #run_make_command("./rocksdb")
+    #run_make_command("./rocksdb/examples")
+    #run_make_command("./K-V-Workload-Generator")
 
     with open(input_file, "r") as f:
         lines = f.readlines()
@@ -88,5 +106,9 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="CS561 Project 1")
     parser.add_argument("--keep-tmp", action="store_true", help="Keep previous files in /tmp/cs561_project1")
+    parser.add_argument("--del-workload", action="store_true", help="Delete all previously generated workloads")
+    parser.add_argument("--make-clean", action="store_true", help="Run make clean in rocksdb directories")
     args = parser.parse_args()
+    if args.del_workload:
+        delete_workloads()
     main(args)
