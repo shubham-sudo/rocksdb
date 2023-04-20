@@ -6068,7 +6068,7 @@ std::vector<CompactionInputFiles> DBImpl::FilterFileThatCanBeCompacted(std::vect
       Slice _new_start{};
       Slice _new_end{};
 
-      // check the smallest key in i-1 level which is >= current_start in i
+      // check the smallest key in i level which is >= current_start in i
       for (auto fmd : files_meta_data) {
         if (fmd->smallest.user_key().compare(current_start) >= 0) {
           _new_start = fmd->smallest.user_key();
@@ -6076,7 +6076,7 @@ std::vector<CompactionInputFiles> DBImpl::FilterFileThatCanBeCompacted(std::vect
         }
       }
 
-      // check the largest key in the i-1 level which is <= current_end in i
+      // check the largest key in the i level which is <= current_end in i
       for (int j = files_meta_data.size()-1; j >= 0; j--) {
         auto fmd = files_meta_data[j];
         if (fmd->largest.user_key().compare(current_end) <= 0) {
@@ -6093,6 +6093,9 @@ std::vector<CompactionInputFiles> DBImpl::FilterFileThatCanBeCompacted(std::vect
           // also reinitialize files_across_levels to start track the next iteration
           files_that_can_be_compacted.push_back(FilesToBeCompactedAcrossLevels(in_range_files, track_levels_queue));
 
+          // setting for next iteration
+          current_start = in_range_files[i].files[0]->smallest.user_key();
+          current_end = in_range_files[i].files[in_range_files[i].files.size()-1]->largest.user_key();
       } else {
         TrackLevels track_level_i;
         track_level_i.level = i;
@@ -6210,6 +6213,15 @@ std::vector<CompactionInputFiles> DBImpl::FilesToBeCompactedAcrossLevels(std::ve
       new_compaction_input_files.level = track.level;
 
       for (auto fmd : cif.files) {
+        std::cout << "fmd File at Level : " << cif.level << " Number : " << fmd->fd.GetNumber() << " Smallest : ";
+        std::cout.write(fmd->smallest.user_key().data(), fmd->smallest.user_key().size()); 
+        std::cout << " Largest : ";
+        std::cout.write(fmd->largest.user_key().data(), fmd->largest.user_key().size());
+        std::cout << " CIF FILE Size : " << cif.files.size(); 
+        std::cout << std::endl;
+
+        std::cout << "\n\n START : " << start.ToString() << " END : " << end.ToString() << std::endl;
+        
         if ((fmd->smallest.user_key().compare(start) >= 0) && fmd->largest.user_key().compare(end) <= 0) {
           new_compaction_input_files.files.push_back(fmd);
         }
