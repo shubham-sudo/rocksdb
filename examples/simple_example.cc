@@ -88,6 +88,7 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
         workload_file >> instruction;
         Slice _start_key{};
         Slice _end_key{};
+        bool success = false;
 
         switch (instruction)
         {
@@ -133,7 +134,16 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
             _start_key = Slice(std::to_string(start_key));
             _end_key = Slice(std::to_string(end_key));
             db->RangeQueryDrivenCompaction(_start_key, _end_key);
-            CompactionMayAllComplete(db);
+            uint64_t pending_compact;
+            uint64_t pending_compact_bytes;
+            uint64_t running_compact;
+            success = db->GetIntProperty("rocksdb.compaction-pending", &pending_compact)
+                                    && db->GetIntProperty("rocksdb.estimate-pending-compaction-bytes", &pending_compact_bytes)
+                                    && db->GetIntProperty("rocksdb.num-running-compactions", &running_compact);
+            std::cout << "Compaction Running : " << success << std::endl;
+            std::cout << "Pending Compaction : " << pending_compact << std::endl;
+            std::cout << "Pending Compact Bytes : " << pending_compact_bytes << std::endl;
+            std::cout << "Running compaction : " << running_compact << std::endl;
 
             if (!it->status().ok()) {
                 std::cerr << it->status().ToString() << std::endl;

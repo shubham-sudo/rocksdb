@@ -84,6 +84,7 @@ struct ExternalSstFileInfo;
 struct MemTableInfo;
 
 struct TrackLevels{
+  int index;
   int level;
   Slice start;
   Slice end;
