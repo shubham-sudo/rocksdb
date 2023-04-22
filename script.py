@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import argparse
+import datetime
 
 def run_make_command(directory):
     current_dir = os.getcwd()
@@ -9,7 +10,7 @@ def run_make_command(directory):
     subprocess.run("make -j4", shell=True, check=True)
     os.chdir(current_dir)
 
-def run_make__clean_command(directory):
+def run_make_clean_command(directory):
     current_dir = os.getcwd()
     os.chdir(directory)
     subprocess.run("make clean", shell=True, check=True)
@@ -30,13 +31,13 @@ def delete_workloads():
                 print(f"Deleting folder: {item}")
                 shutil.rmtree(item)
 
-def run_simple_example(workload_path, out_f, args):
+def run_simple_example(workload_path, out_f, args, output_file, timestamp):
     shutil.copy(workload_path, "./rocksdb/examples/workload.txt")
     shutil.copy(workload_path, "./workload.txt")
 
     simple_example_command = "./rocksdb/examples/simple_example"
+    print(f"Running simple_example: {simple_example_command}")
     try:
-        print(f"Running simple_example: {simple_example_command}")
         p = subprocess.Popen(simple_example_command, shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
         stdout, stderr = p.communicate()
     except subprocess.CalledProcessError as e:
@@ -49,13 +50,19 @@ def run_simple_example(workload_path, out_f, args):
     out_f.write("\n####################################################################################################\n")
     out_f.write(stdout.decode("utf-8"))
 
+
+    output_filtered_file = f"output_filtered_{timestamp}.txt"
+    subprocess.run(f'grep -E "rocksdb.compaction.times.micros|#######################|Running load|\s+[[:digit:]]+\s+[[:digit:]]+\s+[[:digit:]]+|^--------------------$|Level Statistics|Level, $" {output_file} > {output_filtered_file}', shell=True, check=True)
+    p.communicate()
+
 def main(args):
     input_file = "workloads_info.txt"
-    output_file = "output.txt"
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file = f"output_{timestamp}.txt"
 
     if args.make_clean:
         print("Running make clean in all directories")
-        run_make__clean_command("./rocksdb")
+        run_make_clean_command("./rocksdb")
 
     if args.make or args.make_clean:
         print("Running make in all directories")
@@ -108,16 +115,20 @@ def main(args):
                         elif workload_line.startswith("S"):
                             s_f.write(workload_line)
 
-                run_simple_example(iud_workload_path, out_f, args)
-                run_simple_example(s_workload_path, out_f, args)
+                run_simple_example(iud_workload_path, out_f, args, output_file, timestamp)
+                run_simple_example(s_workload_path, out_f, args, output_file, timestamp)
             else:
-                run_simple_example(existing_workload_path, out_f, args)
+                run_simple_example(existing_workload_path, out_f, args, output_file, timestamp)
 
             if not args.keep_tmp:
                 print("Deleting previous files from tmp")
                 delete_files_in_directory("/tmp/cs561_project1")
             else:
                 print("Keeping previous files in tmp")
+
+    os.makedirs("output_log", exist_ok=True)
+    shutil.move(output_file, f"output_log/{output_file}")
+    shutil.move(f"output_filtered_{timestamp}.txt", f"output_log/output_filtered_{timestamp}.txt")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="CS561 Project 1")

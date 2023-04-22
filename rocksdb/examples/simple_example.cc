@@ -60,7 +60,7 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
 
     // Clearing the system cache
     std::cout << "Clearing system cache ..." << std::endl;
-    int clean_flag = system("echo Ipad2gamer | sudo -S sh -c 'echo 3 >/proc/sys/vm/drop_caches'");
+    int clean_flag = system("echo cs561project3 | sudo -S sh -c 'echo 3 >/proc/sys/vm/drop_caches'");
     if (clean_flag) {
         std::cerr << "Cannot clean the system cache" << std::endl;
         exit(0);
@@ -80,7 +80,6 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
     start = std::chrono::system_clock::now();
 
     printStats(db, op);
-    bool success;
 
     while (!workload_file.eof()) {
         char instruction;
@@ -89,6 +88,7 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
         workload_file >> instruction;
         Slice _start_key{};
         Slice _end_key{};
+        bool success = false;
 
         switch (instruction)
         {
@@ -134,7 +134,6 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
             _start_key = Slice(std::to_string(start_key));
             _end_key = Slice(std::to_string(end_key));
             db->RangeQueryDrivenCompaction(_start_key, _end_key);
-            //CompactionMayAllComplete(db);
             uint64_t pending_compact;
             uint64_t pending_compact_bytes;
             uint64_t running_compact;
@@ -238,7 +237,7 @@ void configCompactionOptions(Options& op) {
 
     op.target_file_size_base = 512 * 1024;  // file size in level base, usually level-1)
     op.target_file_size_multiplier = 2;
-    op.max_background_jobs = 4;
+    op.max_background_jobs = 1;
     // op.max_compaction_bytes = op.target_file_size_base * 25;  // Set to default
     op.max_bytes_for_level_base = op.write_buffer_size;  // same as write buffer size
     op.max_bytes_for_level_multiplier = 2;
