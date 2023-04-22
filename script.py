@@ -35,7 +35,10 @@ def run_simple_example(workload_path, out_f, args, output_file, timestamp):
     shutil.copy(workload_path, "./rocksdb/examples/workload.txt")
     shutil.copy(workload_path, "./workload.txt")
 
-    simple_example_command = "./rocksdb/examples/simple_example"
+    if args.rc_off:
+        simple_example_command = "./rocksdb/examples/simple_example --rc-off"
+    else:
+        simple_example_command = "./rocksdb/examples/simple_example"
     print(f"Running simple_example: {simple_example_command}")
     try:
         p = subprocess.Popen(simple_example_command, shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
@@ -52,7 +55,7 @@ def run_simple_example(workload_path, out_f, args, output_file, timestamp):
 
 
     output_filtered_file = f"output_filtered_{timestamp}.txt"
-    subprocess.run(f'grep -E "rocksdb.compaction.times.micros|#######################|Running load|\s+[[:digit:]]+\s+[[:digit:]]+\s+[[:digit:]]+|^--------------------$|Level Statistics|Level, $" {output_file} > {output_filtered_file}', shell=True, check=True)
+    subprocess.run(f'grep -E "rocksdb.compaction.times.micros|#######################|Running load|\s+[[:digit:]]+\s+[[:digit:]]+\s+[[:digit:]]+|^--------------------$|Level Statistics|Level, $|rocksdb.bytes.written|rocksdb.number.db.seek |rocksdb.number.db.next|rocksdb.db.iter.bytes.read|rocksdb.no.file.opens|" {output_file} > {output_filtered_file}', shell=True, check=True)
     p.communicate()
 
 def main(args):
@@ -125,6 +128,9 @@ def main(args):
                 delete_files_in_directory("/tmp/cs561_project1")
             else:
                 print("Keeping previous files in tmp")
+            timestamp2 = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_img = f"output_{timestamp2}.png"
+            p = subprocess.Popen(f"python stats.py {output_img}", shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
 
     os.makedirs("output_log", exist_ok=True)
     shutil.move(output_file, f"output_log/{output_file}")
@@ -137,6 +143,7 @@ if __name__ == "__main__":
     parser.add_argument("--make-clean", action="store_true", help="Run make clean in rocksdb directories")
     parser.add_argument("--make", action="store_true", help="Run make in all directories")
     parser.add_argument("--split-workload", action="store_true", help="Run simple example separately for IUD and S workloads")
+    parser.add_argument("--rc-off", action="store_true", help="Turn off Range Compaction")
     args = parser.parse_args()
     if args.del_workload:
         delete_workloads()
