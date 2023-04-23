@@ -5973,100 +5973,48 @@ void DBImpl::RecordSeqnoToTimeMapping() {
   }
 }
 
+void DBImpl::RangeQueryDrivenCompaction(Slice& start_key, Slice& end_key) {
+  ColumnFamilyHandle* cfh_ = this->DefaultColumnFamily();
+  auto cfh__ = static_cast_with_check<ColumnFamilyHandleImpl>(cfh_);
+  ColumnFamilyData* cfd_ = cfh__->cfd();
+  Version* version = cfd_->current();
+  assert(version);
+  std::vector<CompactionInputFiles> all_input_files(version->storage_info()->num_non_empty_levels());
 
-// void printFilesToBeCompacted(std::vector<CompactionInputFiles>& files_to_print) {
-//   for (size_t fd = 0; fd < files_to_print.size(); fd++) {
-//     auto cif_ = files_to_print.at(fd);
-//     std::cout << "Level : " << cif_.level << std::endl;
-//     for (size_t ff = 0; ff < cif_.files.size(); ff++) {
-//       std::cout << "File at Level : " << cif_.level << " Number : " << cif_.files.at(ff)->fd.GetNumber() 
-//                 << " Smallest : ";
-//                 std::cout.write(cif_.files.at(ff)->smallest.user_key().data(), cif_.files.at(ff)->smallest.user_key().size()); 
-//                 std::cout << " Largest : ";
-//                 std::cout.write(cif_.files.at(ff)->largest.user_key().data(), cif_.files.at(ff)->largest.user_key().size()); 
-//                 std::cout << std::endl;
-//     }
-//   }
-// }
-
-
-void DBImpl::RangeQueryDrivenCompaction(Slice& start_key, Slice& end_key){
-
-    // std::cout << "RangeQueryDrivenCompaction : \n\tStart Key :" << start_key.data_ << "\n\tEnd Key : " << end_key.data_ << std::endl;
-     
-    ColumnFamilyHandle* cfh_ = this->DefaultColumnFamily();
-
-    auto cfh__ = static_cast_with_check<ColumnFamilyHandleImpl>(cfh_);
-    ColumnFamilyData* cfd_ = cfh__->cfd();
-
-    Version* version = cfd_->current();
-    assert(version);
-
-    std::vector<CompactionInputFiles> all_input_files{};
-
-    for (int level = 0; level < version->storage_info()->num_non_empty_levels(); level++) {
-      CompactionInputFiles cif{};
-      cif.level = level;
-      std::vector<FileMetaData*> vec_files_meta_data{};
-      
-      for (size_t i = 0; i < version->storage_info()->LevelFilesBrief(level).num_files; i++) {
-        vec_files_meta_data.push_back(version->storage_info()->LevelFilesBrief(level).files[i].file_metadata);
-      }
-
-      cif.files = vec_files_meta_data;
-      all_input_files.push_back(cif);
-    }
-
-    // std::cout << "All Input files : " << std::endl;
-    // printFilesToBeCompacted(all_input_files);
-
-    std::vector<CompactionInputFiles> files_to_be_compacted = FilterFileThatCanBeCompacted(all_input_files, start_key, end_key, cfd_);
-
-    // std::cout << "\nFile To be Compacted : " << std::endl;
-    // printFilesToBeCompacted(files_to_be_compacted);
-
-    if (files_to_be_compacted.size() > 0) {
-
-      // std::cout << "\n ######## Triggering Manual Compaction Here ######## " << std::endl;
-
-      int level_to_write_at = GetHighestLevelFromCompact(files_to_be_compacted);
-
-      std::vector<std::string> input_file_names{};
-
-      for (auto cif : files_to_be_compacted) {
-        for (auto ff : cif.files) {
-          std::string file_name = TableFileName(cfd_->ioptions()->cf_paths, ff->fd.GetNumber(), ff->fd.GetPathId());
-          std::cout << "File name : " << file_name << " At Level : " << cif.level << std::endl; 
-          input_file_names.push_back(file_name);
-        }
-      }
-
-      // CompactionPicker* cp = cfd_->compaction_picker();
-
-      CompactionOptions coptions;
-      // MutableCFOptions mcfoptions;
-      // MutableDBOptions mdboptions;
-
-      // std::cout << "Compacting Files : " << std::endl;
-      // printFilesToBeCompacted(files_to_be_compacted);
-      std::cout << "Writing at Level : " << level_to_write_at << std::endl;
-      std::cout << "Total Files Selected : " << input_file_names.size() << std::endl;
-
-      Status status = this->CompactFiles(coptions, input_file_names, level_to_write_at);
-
-      // Status status = this->CompactFiles(coptions, files_to_be_compacted, level_to_write_at, version->storage_info(), mcfoptions, mdboptions, 0);
-
-      std::cout << status.ToString() << std::endl;
+  // Combine level and file metadata collection loops
+  for (int level = 0; level < version->storage_info()->num_non_empty_levels(); level++) {
+    auto& cif = all_input_files[level];
+    cif.level = level;
+    auto num_files = version->storage_info()->LevelFilesBrief(level).num_files;
+    cif.files.reserve(num_files);
+    
+    for (size_t i = 0; i < num_files; i++) {
+      cif.files.push_back(version->storage_info()->LevelFilesBrief(level).files[i].file_metadata);
     }
   }
 
-int DBImpl::GetHighestLevelFromCompact(std::vector<CompactionInputFiles> files) {
+  std::vector<CompactionInputFiles> files_to_be_compacted = FilterFileThatCanBeCompacted(all_input_files, start_key, end_key, cfd_);
+
+  if (!files_to_be_compacted.empty()) {
+    int level_to_write_at = GetHighestLevelFromCompact(files_to_be_compacted);
+    std::vector<std::string> input_file_names{};
+
+    for (auto& cif : files_to_be_compacted) {
+      for (auto* ff : cif.files) {
+        std::string file_name = TableFileName(cfd_->ioptions()->cf_paths, ff->fd.GetNumber(), ff->fd.GetPathId());
+        input_file_names.push_back(file_name);
+      }
+    }
+    CompactionOptions coptions;
+    Status status = this->CompactFiles(coptions, input_file_names, level_to_write_at);
+  }
+}
+
+int DBImpl::GetHighestLevelFromCompact(const std::vector<CompactionInputFiles>& files) {
   int max_level = -1;
 
-  for (auto cif : files) {
-    if (cif.level > max_level) {
-      max_level = cif.level;
-    }
+  for (const auto& cif : files) {
+    max_level = std::max(max_level, cif.level);
   }
 
   return max_level;
@@ -6143,12 +6091,6 @@ std::vector<CompactionInputFiles> DBImpl::FilterFileThatCanBeCompacted(std::vect
       }
     }
   }
-
-  // std::cout << "\nFiles those are selected : " << std::endl;
-  // for (size_t jj = 0; jj < files_that_can_be_compacted.size(); jj++) {
-  //   printFilesToBeCompacted(files_that_can_be_compacted.at(jj));
-  // }
-
   std::vector<CompactionInputFiles> _no_files_can_be_compacted{};
   return files_that_can_be_compacted.size() > 0 ? HighestFilesSizeAcrossLevels(files_that_can_be_compacted) : _no_files_can_be_compacted;
 } 
@@ -6166,14 +6108,10 @@ std::vector<CompactionInputFiles> DBImpl::HighestFilesSizeAcrossLevels(std::vect
         current_size += fmd->fd.file_size;
       }
     }
-
     if (max_size < current_size) {
       index_having_largest_size = i;
     }
   }
-
-  // std::cout << "Highest Files Size : " << std::endl;
-  // printFilesToBeCompacted(files_to_be_compacted.at(index_having_largest_size));
 
   return files_to_be_compacted.at(index_having_largest_size);
 }
@@ -6181,11 +6119,9 @@ std::vector<CompactionInputFiles> DBImpl::HighestFilesSizeAcrossLevels(std::vect
 
 std::vector<CompactionInputFiles> DBImpl::FilterOnlyInRangeFiles(std::vector<CompactionInputFiles>& all_files, 
                                                         Slice& start_key, Slice& end_key, ColumnFamilyData* cfd_) {
-
   std::vector<CompactionInputFiles> filtered_files{};
 
   for (auto cfi : all_files) {
-
     CompactionInputFiles ncfi{};
     ncfi.level = cfi.level;
     bool flag = false;
@@ -6196,15 +6132,10 @@ std::vector<CompactionInputFiles> DBImpl::FilterOnlyInRangeFiles(std::vector<Com
         flag = true;        
       }
     }
-
     if (flag) {
       filtered_files.push_back(ncfi);
     }
   }
-
-  // std::cout << "\nFiles found in Range : " << std::endl;
-  // printFilesToBeCompacted(filtered_files);
-
   return filtered_files;
 }
 
@@ -6212,10 +6143,8 @@ std::vector<CompactionInputFiles> DBImpl::FilterOnlyInRangeFiles(std::vector<Com
 std::vector<CompactionInputFiles> DBImpl::FilesToBeCompactedAcrossLevels(std::vector<CompactionInputFiles> all_files, 
                                                                 std::queue<TrackLevels>& track_levels) {
   std::vector<CompactionInputFiles> files_across_levels{};
-
   // create CompactionInputFiles object and add to files_across_level vector
   // be careful about the levels which are in track_levels_queue because it can be duplicate
-
   int current_level{-1};
 
   while (track_levels.size() > 0) {
@@ -6224,10 +6153,8 @@ std::vector<CompactionInputFiles> DBImpl::FilesToBeCompactedAcrossLevels(std::ve
     if (track.level != current_level) {
       Slice start = track.start;
       Slice end = track.end;
-
       CompactionInputFiles new_compaction_input_files{};
       auto cif = all_files[track.index];
-      
       new_compaction_input_files.level = track.level;
 
       for (auto fmd : cif.files) {
@@ -6235,21 +6162,12 @@ std::vector<CompactionInputFiles> DBImpl::FilesToBeCompactedAcrossLevels(std::ve
           new_compaction_input_files.files.push_back(fmd);
         }
       }
-
       files_across_levels.push_back(new_compaction_input_files);
-
-      // std::cout << "\nFiles Selected after Push_back : " << std::endl;
-      // printFilesToBeCompacted(files_across_levels);
-
     }
-
     current_level = track.level;
-
     track_levels.pop();
   }
-
-  return files_across_levels;
-  
+  return files_across_levels;  
 }
 
 }  // namespace ROCKSDB_NAMESPACE
