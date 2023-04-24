@@ -31,14 +31,14 @@ def delete_workloads():
                 print(f"Deleting folder: {item}")
                 shutil.rmtree(item)
 
-def run_simple_example(workload_path, out_f, args, output_file, timestamp):
+def run_simple_example(workload_path, out_f, args, output_file, timestamp, rangeStatFileName):
     shutil.copy(workload_path, "./rocksdb/examples/workload.txt")
     shutil.copy(workload_path, "./workload.txt")
 
     if args.rc_off:
-        simple_example_command = "./rocksdb/examples/simple_example --rc-off"
+        simple_example_command = f"./rocksdb/examples/simple_example {rangeStatFileName} --rc-off"
     else:
-        simple_example_command = "./rocksdb/examples/simple_example"
+        simple_example_command = f"./rocksdb/examples/simple_example {rangeStatFileName}"
     print(f"Running simple_example: {simple_example_command}")
     try:
         p = subprocess.Popen(simple_example_command, shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
@@ -85,6 +85,8 @@ def main(args):
             s_value = tokens[tokens.index("S") + 1]
             Y_value = tokens[tokens.index("Y") + 1]
 
+            file_modifier = f"_I{i_value}_U{u_value}_D{d_value}_S{s_value}_Y{Y_value}_rc_off_{args.rc_off}"
+            rangeStatFileName = f"rangeQTime{file_modifier}.csv"
             directory_name = f"./load_gen_I{i_value}_U{u_value}_D{d_value}_S{s_value}_Y{Y_value}"
             os.makedirs(directory_name, exist_ok=True)
 
@@ -118,19 +120,47 @@ def main(args):
                         elif workload_line.startswith("S"):
                             s_f.write(workload_line)
 
-                run_simple_example(iud_workload_path, out_f, args, output_file, timestamp)
-                run_simple_example(s_workload_path, out_f, args, output_file, timestamp)
+                file_modifier = f"_I{i_value}_U{u_value}_D{d_value}_S{s_value}_Y{Y_value}_rc_off_{args.rc_off}"
+                rangeStatFileName = f"rangeQTime{file_modifier}.csv"
+                run_simple_example(iud_workload_path, out_f, args, output_file, timestamp, rangeStatFileName)
+
+                if args.switch_on:
+                    
+                    #print(args)
+                    parameter_name = "rc_off"
+                    args.rc_off = True
+                    #print(args)
+                    file_modifier2 = f"_I{i_value}_U{u_value}_D{d_value}_S{s_value}_Y{Y_value}_rc_off_{args.rc_off}"
+                    rangeStatFileName2 = f"rangeQTime{file_modifier2}.csv"
+                    run_simple_example(s_workload_path, out_f, args, output_file, timestamp, rangeStatFileName2)
+                    output_img = f"graph_{file_modifier2}.png"
+                    p = subprocess.Popen(f"python stats.py {rangeStatFileName2} {output_img} {file_modifier2}", shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+                    args.rc_off = False
+                
+                file_modifier = f"_I{i_value}_U{u_value}_D{d_value}_S{s_value}_Y{Y_value}_rc_off_{args.rc_off}"
+                rangeStatFileName = f"rangeQTime{file_modifier}.csv"
+                run_simple_example(s_workload_path, out_f, args, output_file, timestamp, rangeStatFileName)
+                output_img = f"graph_{file_modifier}.png"
+                p = subprocess.Popen(f"python stats.py {rangeStatFileName} {output_img} {file_modifier}", shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+                if args.switch_on:
+                    p = subprocess.Popen(f"python stats.py {rangeStatFileName} {'2' + output_img} {file_modifier} {rangeStatFileName2}", shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+
+                    
             else:
-                run_simple_example(existing_workload_path, out_f, args, output_file, timestamp)
+                file_modifier = f"_I{i_value}_U{u_value}_D{d_value}_S{s_value}_Y{Y_value}_rc_off_{args.rc_off}_nosplit"
+                rangeStatFileName = f"rangeQTime{file_modifier}.csv"
+
+                run_simple_example(existing_workload_path, out_f, args, output_file, rangeStatFileName)
+
+                output_img = f"graph_{file_modifier}.png"
+                p = subprocess.Popen(f"python stats.py {rangeStatFileName} {output_img}", shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
 
             if not args.keep_tmp:
                 print("Deleting previous files from tmp")
                 delete_files_in_directory("/tmp/cs561_project1")
             else:
                 print("Keeping previous files in tmp")
-            timestamp2 = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_img = f"output_{timestamp2}.png"
-            p = subprocess.Popen(f"python stats.py {output_img}", shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+            
 
     os.makedirs("output_log", exist_ok=True)
     shutil.move(output_file, f"output_log/{output_file}")
@@ -144,6 +174,7 @@ if __name__ == "__main__":
     parser.add_argument("--make", action="store_true", help="Run make in all directories")
     parser.add_argument("--split-workload", action="store_true", help="Run simple example separately for IUD and S workloads")
     parser.add_argument("--rc-off", action="store_true", help="Turn off Range Compaction")
+    parser.add_argument("--switch-on", action="store_true", help="Runs with RC off then RC on")
     args = parser.parse_args()
     if args.del_workload:
         delete_workloads()

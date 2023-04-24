@@ -22,6 +22,24 @@ inline void sleep_for_ms(uint32_t ms) {
    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
 
+void writeVectorToCsv(const std::vector<std::chrono::duration<double>>& vec, const std::string& filename) {
+    // open the file for writing
+    std::ofstream outputFile(filename);
+
+    // write the vector to the file in CSV format
+    for (int i = 0; i < vec.size(); i++) {
+        outputFile << vec[i].count();
+        //std::cout << "Vector: " << vec[i].count() << std::endl;
+        if (i != vec.size() - 1) {
+            outputFile << ",";
+        }
+    }
+    outputFile << std::endl;
+
+    // close the file
+    outputFile.close();
+}
+
 // Need to select timeout carefully Completion not guaranteed
 bool CompactionMayAllComplete(DB *db) {
     uint64_t pending_compact;
@@ -45,8 +63,10 @@ bool CompactionMayAllComplete(DB *db) {
     return true;
 }
 
-void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
+void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op, int argc, char* argv[]) {
     DB* db;
+    std::vector<std::chrono::duration<double>> rangeQTime;
+    std::string rangeQTimeFileName = argv[1];
 
     Status s = DB::Open(op, kDBPath, &db);
     if (!s.ok()) std::cerr << s.ToString() << std::endl;
@@ -80,6 +100,10 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
     start = std::chrono::system_clock::now();
 
     printStats(db, op);
+
+    if(argc > 2 && std::strcmp(argv[2], "--rc-off") == 0){
+        std::cout << "RDC is off" << std::endl;
+    }
 
     while (!workload_file.eof()) {
         char instruction;
@@ -133,24 +157,31 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
             }
             _start_key = Slice(std::to_string(start_key));
             _end_key = Slice(std::to_string(end_key));
-            db->RangeQueryDrivenCompaction(_start_key, _end_key);
-            uint64_t pending_compact;
-            uint64_t pending_compact_bytes;
-            uint64_t running_compact;
-            success = db->GetIntProperty("rocksdb.compaction-pending", &pending_compact)
-                                    && db->GetIntProperty("rocksdb.estimate-pending-compaction-bytes", &pending_compact_bytes)
-                                    && db->GetIntProperty("rocksdb.num-running-compactions", &running_compact);
-            std::cout << "Compaction Running : " << success << std::endl;
-            std::cout << "Pending Compaction : " << pending_compact << std::endl;
-            std::cout << "Pending Compact Bytes : " << pending_compact_bytes << std::endl;
-            std::cout << "Running compaction : " << running_compact << std::endl;
-
-            if (!it->status().ok()) {
-                std::cerr << it->status().ToString() << std::endl;
+            if (argc > 2 && std::strcmp(argv[2], "--rc-off") == 0) {
+                //std::cout << "RDC is off" << std::endl;
+            } else {
+                db->RangeQueryDrivenCompaction(_start_key, _end_key);
             }
+            
+            // uint64_t pending_compact;
+            // uint64_t pending_compact_bytes;
+            // uint64_t running_compact;
+            // success = db->GetIntProperty("rocksdb.compaction-pending", &pending_compact)
+            //                         && db->GetIntProperty("rocksdb.estimate-pending-compaction-bytes", &pending_compact_bytes)
+            //                         && db->GetIntProperty("rocksdb.num-running-compactions", &running_compact);
+            // std::cout << "Compaction Running : " << success << std::endl;
+            // std::cout << "Pending Compaction : " << pending_compact << std::endl;
+            // std::cout << "Pending Compact Bytes : " << pending_compact_bytes << std::endl;
+            // std::cout << "Running compaction : " << running_compact << std::endl;
+
+            // if (!it->status().ok()) {
+            //     std::cerr << it->status().ToString() << std::endl;
+            // }
             counter++;
             rquery_end = std::chrono::system_clock::now();
             total_rquery_time_elapsed += rquery_end - rquery_start;
+            rangeQTime.push_back((rquery_end - rquery_start));
+            //std::cout << "Range Query Time : " << (rquery_end - rquery_start).count() << std::endl;
             break;
 
         case 'D':  // Delete key
@@ -172,9 +203,13 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op) {
     std::chrono::duration<double> elapsed_seconds = end - start;
     std::cout << "\n----------------------Workload Complete-----------------------" << std::endl;
     std::cout << "Total time taken by workload = " << elapsed_seconds.count() << " seconds" << std::endl;
-    std::cout << "Total time taken by inserts = " << total_insert_time_elapsed.count() << " seconds" << std::endl;
+    std::cout << "Total time taken by inserts and updates = " << total_insert_time_elapsed.count() << " seconds" << std::endl;
     std::cout << "Total time taken by queries = " << total_query_time_elapsed.count() << " seconds" << std::endl;
     std::cout << "Total time taken by rqueries = " << total_rquery_time_elapsed.count() << " seconds" << std::endl;
+    // for( auto i : rangeQTime){
+    //     std::cout << i << std::endl;
+    // }
+    writeVectorToCsv(rangeQTime, rangeQTimeFileName);
 
     workload_file.close();
     printStats(db, op);
@@ -237,7 +272,7 @@ void configCompactionOptions(Options& op) {
 
     op.target_file_size_base = 512 * 1024;  // file size in level base, usually level-1)
     op.target_file_size_multiplier = 2;
-    op.max_background_jobs = 1;
+    op.max_background_jobs = 4;
     // op.max_compaction_bytes = op.target_file_size_base * 25;  // Set to default
     op.max_bytes_for_level_base = op.write_buffer_size;  // same as write buffer size
     op.max_bytes_for_level_multiplier = 2;
@@ -252,10 +287,14 @@ void configCompactionOptions(Options& op) {
 
 }
 
-int main() {
+int main(int argc, char* argv[]) {
     Options options;
     WriteOptions write_op;
     ReadOptions read_op;
     configCompactionOptions(options);
-    runWorkload(options, write_op, read_op);
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <workload_file>" << std::endl;
+        return 1;
+    }
+    runWorkload(options, write_op, read_op, argc, argv);
 }

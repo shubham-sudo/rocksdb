@@ -8,7 +8,6 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 #include <cinttypes>
 #include <deque>
-#include <iostream>
 
 #include "db/builder.h"
 #include "db/db_impl/db_impl.h"
@@ -1447,15 +1446,15 @@ Status DBImpl::CompactFilesImpl(
   TEST_SYNC_POINT("CompactFilesImpl:0");
   TEST_SYNC_POINT("CompactFilesImpl:1");
   // Ignore the status here, as it will be checked in the Install down below...
-  std::cout << "Running compaction job id : " << job_context->job_id << std::endl;
+
   compaction_job.Run().PermitUncheckedError();
   TEST_SYNC_POINT("CompactFilesImpl:2");
   TEST_SYNC_POINT("CompactFilesImpl:3");
   mutex_.Lock();
 
-  std::cout << "Installing compaction job id : " << job_context->job_id << std::endl;
+
   Status status = compaction_job.Install(*c->mutable_cf_options());
-  std::cout << "Installing status : " << status.ToString() << std::endl;
+  // std::cout << "Installing status : " << status.ToString() << std::endl;
   if (status.ok()) {
     assert(compaction_job.io_status().ok());
     InstallSuperVersionAndScheduleWork(c->column_family_data(),
@@ -1482,20 +1481,16 @@ Status DBImpl::CompactFilesImpl(
   }
 
   if (status.ok()) {
-    std::cout << "Success compaction job id : " << job_context->job_id << std::endl;
     // Done
   } else if (status.IsColumnFamilyDropped() || status.IsShutdownInProgress()) {
-    std::cout << "Shutdown ompaction job id : " << job_context->job_id << std::endl;
     // Ignore compaction errors found during shutting down
   } else if (status.IsManualCompactionPaused()) {
-    std::cout << "Paused compaction job id : " << job_context->job_id << std::endl;
     // Don't report stopping manual compaction as error
     ROCKS_LOG_INFO(immutable_db_options_.info_log,
                    "[%s] [JOB %d] Stopping manual compaction",
                    c->column_family_data()->GetName().c_str(),
                    job_context->job_id);
   } else {
-    std::cout << "Error compaction job id : " << job_context->job_id << std::endl;
     ROCKS_LOG_WARN(immutable_db_options_.info_log,
                    "[%s] [JOB %d] Compaction error: %s",
                    c->column_family_data()->GetName().c_str(),
@@ -1530,7 +1525,6 @@ Status DBImpl::CompactFilesImpl(
   }
   MaybeScheduleFlushOrCompaction();
   TEST_SYNC_POINT("CompactFilesImpl:End");
-  std::cout << "End compaction job id : " << job_context->job_id << std::endl;
 
   return status;
 }
