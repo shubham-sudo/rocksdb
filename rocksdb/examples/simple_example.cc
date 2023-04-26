@@ -293,7 +293,7 @@ int main(int argc, char* argv[]) {
     ReadOptions read_op;
     configCompactionOptions(options);
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <workload_file>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <outputRangeStatFileName>" << std::endl;
         return 1;
     }
     runWorkload(options, write_op, read_op, argc, argv);

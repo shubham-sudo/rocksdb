@@ -35,13 +35,16 @@ if(len(sys.argv) > 4):
 plt.plot(x_values, new_y_values)
 if(len(sys.argv) > 4):
     plt.plot(x_values, new_y2_values)
-    plt.legend(['RangeDrivenCompaction', 'Vanilla'], loc='upper left')
+    plt.legend(['RangeDrivenCompaction', 'Vanilla'], loc='upper right')
 #plt.yticks(plt.yticks()[0][::len(y_values)//5])
 #plt.gca().yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
-plt.ylim(0, 1)
+if (len(sys.argv) > 4):
+    plt.ylim(0, max(max(new_y_values), max(new_y2_values)))
+else:
+    plt.ylim(0, max(new_y_values))
 # add axis labels and a title
 plt.xlabel('Query Number')
-plt.ylabel('TIme (Seconds)')
+plt.ylabel('Time (Seconds)')
 plt.title(title)
 
 # save the graph with a filename based on the command line argument
