@@ -5973,6 +5973,11 @@ void DBImpl::RecordSeqnoToTimeMapping() {
   }
 }
 
+/*
+  * This function is used to find the files that overlap with the range
+  * [start_key, end_key] in the given level. The files are compacted in
+  * overlapping_inputs.
+*/
 void DBImpl::RangeQueryDrivenCompaction(Slice& start_key, Slice& end_key) {
   ColumnFamilyHandle* cfh_ = this->DefaultColumnFamily();
   auto cfh__ = static_cast_with_check<ColumnFamilyHandleImpl>(cfh_);
@@ -5993,6 +5998,7 @@ void DBImpl::RangeQueryDrivenCompaction(Slice& start_key, Slice& end_key) {
     }
   }
 
+  // Filter files that can be compacted
   std::vector<CompactionInputFiles> files_to_be_compacted = FilterFileThatCanBeCompacted(all_input_files, start_key, end_key, cfd_);
 
   if (!files_to_be_compacted.empty()) {
@@ -6010,6 +6016,10 @@ void DBImpl::RangeQueryDrivenCompaction(Slice& start_key, Slice& end_key) {
   }
 }
 
+/*
+  * This function is used to find the highest level from the files that are
+  * going to be compacted.
+*/
 int DBImpl::GetHighestLevelFromCompact(const std::vector<CompactionInputFiles>& files) {
   int max_level = -1;
 
@@ -6020,6 +6030,11 @@ int DBImpl::GetHighestLevelFromCompact(const std::vector<CompactionInputFiles>& 
   return max_level;
 }
 
+/*
+  * This function is used to filter the files that can be compacted.
+  * The files that can be compacted are the files that are in the range
+  * [start_key, end_key] and are completely overlapping with the files in other levels
+*/
 std::vector<CompactionInputFiles> DBImpl::FilterFileThatCanBeCompacted(std::vector<CompactionInputFiles> all_files, 
                                                               Slice& start_key, Slice& end_key, ColumnFamilyData* cfd_) {
   std::vector<CompactionInputFiles> in_range_files = FilterOnlyInRangeFiles(all_files, start_key, end_key, cfd_);
@@ -6032,6 +6047,7 @@ std::vector<CompactionInputFiles> DBImpl::FilterFileThatCanBeCompacted(std::vect
     Slice current_start = in_range_files[in_range_files.size()-1].files[0]->smallest.user_key();
     Slice current_end = in_range_files[in_range_files.size()-1].files[in_range_files[in_range_files.size()-1].files.size()-1]->largest.user_key();
 
+    // Iterate files from second last level to first
     for (int i = in_range_files.size()-2; i >= 0; i--) {
       std::vector<FileMetaData*> files_meta_data = in_range_files[i].files;
       int _new_level = in_range_files[i].level;
@@ -6091,14 +6107,20 @@ std::vector<CompactionInputFiles> DBImpl::FilterFileThatCanBeCompacted(std::vect
       }
     }
   }
+  // if there is only one file in the range
   std::vector<CompactionInputFiles> _no_files_can_be_compacted{};
   return files_that_can_be_compacted.size() > 0 ? HighestFilesSizeAcrossLevels(files_that_can_be_compacted) : _no_files_can_be_compacted;
 } 
 
+/*
+  * This function is used to get the files that are completely overlapping
+  * with the files in other levels and has the maximum size across the selected levels
+*/
 std::vector<CompactionInputFiles> DBImpl::HighestFilesSizeAcrossLevels(std::vector<std::vector<CompactionInputFiles>> files_to_be_compacted) {
   int index_having_largest_size = -1;
   auto max_size = 0;
 
+  // find the index of the vector which has the largest size
   for (size_t i = 0; i < files_to_be_compacted.size(); i++) {
     std::vector<CompactionInputFiles> vec_cif  = files_to_be_compacted[i];
     auto current_size = 0;
@@ -6116,11 +6138,14 @@ std::vector<CompactionInputFiles> DBImpl::HighestFilesSizeAcrossLevels(std::vect
   return files_to_be_compacted.at(index_having_largest_size);
 }
 
-
+/*
+  * Filter files that are in the range of start_key and end_key
+*/
 std::vector<CompactionInputFiles> DBImpl::FilterOnlyInRangeFiles(std::vector<CompactionInputFiles>& all_files, 
                                                         Slice& start_key, Slice& end_key, ColumnFamilyData* cfd_) {
   std::vector<CompactionInputFiles> filtered_files{};
 
+  // iterate all files and check if the file is in the range
   for (auto cfi : all_files) {
     CompactionInputFiles ncfi{};
     ncfi.level = cfi.level;
@@ -6139,7 +6164,12 @@ std::vector<CompactionInputFiles> DBImpl::FilterOnlyInRangeFiles(std::vector<Com
   return filtered_files;
 }
 
-
+/*
+  * Filter the files that are in the range of start_key and end_key and can be compacted
+  * This iterates over the queue and creates a new CompactionInputFiles object and adds to the vector
+  * This vector contain the CompactionInputFiles object that can be compacted or we can say that
+  * these are the possible compaction we can do across levels
+*/
 std::vector<CompactionInputFiles> DBImpl::FilesToBeCompactedAcrossLevels(std::vector<CompactionInputFiles> all_files, 
                                                                 std::queue<TrackLevels>& track_levels) {
   std::vector<CompactionInputFiles> files_across_levels{};
