@@ -24,7 +24,10 @@ def read_stats(filename):
     return headers, stats
 
 # Create the output folder if it doesn't exist
-output_folder = "output_stats"
+if len(sys.argv) > 1:
+    output_folder = sys.argv[1]
+else:
+    output_folder = "output_stats"
 if not os.path.exists(output_folder):
     os.makedirs(output_folder)
 
