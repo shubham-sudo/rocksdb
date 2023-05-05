@@ -41,6 +41,10 @@ To implement the range query driven compaction, the following files have been mo
 
 Ensure that you have modified all these files and included them in your project.
 
+## Algorithm
+![Initial State](LSM1.png)
+![After Compaction](LSM2.png)
+
 ## Dependencies
 
 This module depends on the RocksDB library. Ensure that you have RocksDB installed and included in your project.
