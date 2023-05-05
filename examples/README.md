@@ -42,8 +42,18 @@ To implement the range query driven compaction, the following files have been mo
 Ensure that you have modified all these files and included them in your project.
 
 ## Algorithm
+we present the Range Query Driven Compaction algorithm, an efficient approach to manage data in a multi-level storage system. This algorithm operates on file metadata to identify the relevant files that can be compacted within a specific key range and triggers a manual compaction process accordingly. 
+
+The algorithm iterates over all files in each level, comparing them against the provided start and end keys for range query. By executing this process, the algorithm ensures that only the necessary files are compacted, leading to optimized storage and improved query performance. An overview of this operation can be observed in Figures. To utilize this algorithm, it must be explicitly called by the application or user, providing them with greater control over the compaction process. 
+
+One of the key benefits of this algorithm is that developers who are aware of the potential gains from its implementation can easily integrate it into their applications. By understanding the underlying queries and advantages, developers can make informed decisions about when to trigger the algorithm, leading to a better overall system performance.
+
 ![Initial State](LSM1.png)
 ![After Compaction](LSM2.png)
+
+Additionally, the algorithm will eventually support adjustable threshold settings. This feature, once implemented, can allow developers to set a threshold for range query driven compaction, ensuring that the process is only initiated when the specified conditions are met. This flexibility enables more precise control over the compaction process, ultimately contributing to a more efficient and effective storage system.
+
+This Range Query Driven Compaction algorithm provides a powerful tool for managing data in multi-level storage systems. By offering customizable controls and leveraging file metadata for targeted compaction, this algorithm enables developers to optimize their applications’ performance and storage efficiency.
 
 ## Dependencies
 
