@@ -16,7 +16,7 @@ db->RangeQueryDrivenCompaction(_start_key, _end_key);
 <br>
 <br>
 
-## What We Have Done
+## Our Contribution
 
 1. [Examples README.md](./examples/README.md)
 2. [SCRIPTS README.md](./scripts/README.md)
