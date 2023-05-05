@@ -97,5 +97,5 @@ cmake-build-*
 third-party/folly/
 
 
-# __working_example
-*/__working_example/*
+*/venv/*
+**/__pycache__/**

@@ -1,0 +1,2 @@
+scripts/workloads/load_gen_I4000000_U6000000_D10000_S500_Y0.4/iud_workload.txt filter=lfs diff=lfs merge=lfs -text
+scripts/workloads/load_gen_I4000000_U6000000_D10000_S500_Y0.4/workload.txt filter=lfs diff=lfs merge=lfs -text

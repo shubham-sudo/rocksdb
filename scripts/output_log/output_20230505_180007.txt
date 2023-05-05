@@ -1,0 +1,172 @@
+Clearing system cache ...
+
+----------------------Workload Complete-----------------------
+Total time taken by workload = 17.9018 seconds
+Total time taken by inserts and updates = 17.4716 seconds
+Total time taken by queries = 0 seconds
+Total time taken by rqueries = 0 seconds
+
+Level Statistics
+Level, Total Files, Level Files Size(MB)
+--------------------
+  0        1        0
+  1        3        2
+  2        1        0
+  3        0        0
+  4        1        2
+  5        6        9
+  6        9       68
+
+Total SST Files Size : 86588709
+----------------------------------------
+
+RocksDB Statistics : 
+rocksdb.db.iter.bytes.read COUNT : 0
+rocksdb.no.file.opens COUNT : 1842
+rocksdb.compaction.times.micros P50 : 15915.492958 P95 : 98166.666667 P99 : 209632.000000 P100 : 209632.000000 COUNT : 642 SUM : 17002925
+rocksdb.db.seek.micros P50 : 0.000000 P95 : 0.000000 P99 : 0.000000 P100 : 0.000000 COUNT : 0 SUM : 0
+
+----------------------------------------
+Compaction Running : 1
+Pending Compaction : 1
+Pending Compact Bytes : 13640209
+Running compaction : 1
+
+Level Statistics
+Level, Total Files, Level Files Size(MB)
+--------------------
+  0        1        0
+  1        0        0
+  2        0        0
+  3        2        1
+  4        2        3
+  5        5        8
+  6        8       69
+
+Total SST Files Size : 85447522
+----------------------------------------
+
+RocksDB Statistics : 
+rocksdb.db.iter.bytes.read COUNT : 0
+rocksdb.no.file.opens COUNT : 1845
+rocksdb.compaction.times.micros P50 : 15958.041958 P95 : 98000.000000 P99 : 209632.000000 P100 : 209632.000000 COUNT : 644 SUM : 17088157
+rocksdb.db.seek.micros P50 : 0.000000 P95 : 0.000000 P99 : 0.000000 P100 : 0.000000 COUNT : 0 SUM : 0
+
+----------------------------------------
+
+----------------------Closing DB-----------------------
+Clearing system cache ...
+RDC is off
+
+----------------------Workload Complete-----------------------
+Total time taken by workload = 71.333 seconds
+Total time taken by inserts and updates = 0 seconds
+Total time taken by queries = 0 seconds
+Total time taken by rqueries = 71.3324 seconds
+
+Level Statistics
+Level, Total Files, Level Files Size(MB)
+--------------------
+  0        0        0
+  1        0        0
+  2        2        1
+  3        2        1
+  4        2        3
+  5        5        8
+  6        8       69
+
+Total SST Files Size : 85734917
+----------------------------------------
+
+RocksDB Statistics : 
+rocksdb.db.iter.bytes.read COUNT : 6886
+rocksdb.no.file.opens COUNT : 21
+rocksdb.compaction.times.micros P50 : 9017.000000 P95 : 9017.000000 P99 : 9017.000000 P100 : 9017.000000 COUNT : 1 SUM : 9017
+rocksdb.db.seek.micros P50 : 24.273038 P95 : 33.506485 P99 : 723.550000 P100 : 1309.000000 COUNT : 501 SUM : 17745
+
+----------------------------------------
+Compaction Running : 1
+Pending Compaction : 0
+Pending Compact Bytes : 0
+Running compaction : 0
+
+Level Statistics
+Level, Total Files, Level Files Size(MB)
+--------------------
+  0        0        0
+  1        0        0
+  2        2        1
+  3        2        1
+  4        2        3
+  5        5        8
+  6        8       69
+
+Total SST Files Size : 85734917
+----------------------------------------
+
+RocksDB Statistics : 
+rocksdb.db.iter.bytes.read COUNT : 6886
+rocksdb.no.file.opens COUNT : 21
+rocksdb.compaction.times.micros P50 : 9017.000000 P95 : 9017.000000 P99 : 9017.000000 P100 : 9017.000000 COUNT : 1 SUM : 9017
+rocksdb.db.seek.micros P50 : 24.273038 P95 : 33.506485 P99 : 723.550000 P100 : 1309.000000 COUNT : 501 SUM : 17745
+
+----------------------------------------
+
+----------------------Closing DB-----------------------
+Clearing system cache ...
+
+----------------------Workload Complete-----------------------
+Total time taken by workload = 58.6241 seconds
+Total time taken by inserts and updates = 0 seconds
+Total time taken by queries = 0 seconds
+Total time taken by rqueries = 58.6236 seconds
+
+Level Statistics
+Level, Total Files, Level Files Size(MB)
+--------------------
+  0        0        0
+  1        0        0
+  2        2        1
+  3        1        0
+  4        0        0
+  5        1        0
+  6        4       73
+
+Total SST Files Size : 77821015
+----------------------------------------
+
+RocksDB Statistics : 
+rocksdb.db.iter.bytes.read COUNT : 157675847
+rocksdb.no.file.opens COUNT : 30
+rocksdb.compaction.times.micros P50 : 411666.666667 P95 : 521583.000000 P99 : 521583.000000 P100 : 521583.000000 COUNT : 5 SUM : 1697689
+rocksdb.db.seek.micros P50 : 12.583102 P95 : 20.486923 P99 : 124.850000 P100 : 684.000000 COUNT : 501 SUM : 8070
+
+----------------------------------------
+Compaction Running : 1
+Pending Compaction : 0
+Pending Compact Bytes : 0
+Running compaction : 0
+
+Level Statistics
+Level, Total Files, Level Files Size(MB)
+--------------------
+  0        0        0
+  1        0        0
+  2        2        1
+  3        1        0
+  4        0        0
+  5        1        0
+  6        4       73
+
+Total SST Files Size : 77821015
+----------------------------------------
+
+RocksDB Statistics : 
+rocksdb.db.iter.bytes.read COUNT : 157675847
+rocksdb.no.file.opens COUNT : 30
+rocksdb.compaction.times.micros P50 : 411666.666667 P95 : 521583.000000 P99 : 521583.000000 P100 : 521583.000000 COUNT : 5 SUM : 1697689
+rocksdb.db.seek.micros P50 : 12.583102 P95 : 20.486923 P99 : 124.850000 P100 : 684.000000 COUNT : 501 SUM : 8070
+
+----------------------------------------
+
+----------------------Closing DB-----------------------
