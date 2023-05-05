@@ -1,3 +1,31 @@
+# Range Query Driven Compaction for RocksDB
+
+We have implemented a range query driven compaction for RocksDB. It helps in compacting the files that overlap within a specified key range, resulting in improved query performance. The range query driven compaction is designed to be called when a range query comes in, and it is up to the developer to call this function from the API.
+
+## Usage
+
+To use the range query driven compaction, call the `RangeQueryDrivenCompaction` function with the desired start and end keys:
+
+```cpp
+DB* db;
+Slice _start_key("key1");
+Slice _end_key("key100");
+db->RangeQueryDrivenCompaction(_start_key, _end_key);
+```
+
+<br>
+<br>
+
+## What We Have Done
+
+1. [Examples README.md](./examples/README.md)
+2. [SCRIPTS README.md](./scripts/README.md)
+
+<br>
+<br>
+
+---
+
 ## RocksDB: A Persistent Key-Value Store for Flash and RAM Storage
 
 [![CircleCI Status](https://circleci.com/gh/facebook/rocksdb.svg?style=svg)](https://circleci.com/gh/facebook/rocksdb)
