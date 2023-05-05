@@ -23,7 +23,7 @@ db->RangeQueryDrivenCompaction(_start_key, _end_key);
 
 ## Report
 
-- [Final Report](./final_report.pdf)
+- [Final Report](./FINAL_REPORT.pdf)
 
 <br>
 <br>
