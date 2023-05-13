@@ -134,7 +134,7 @@ You can include these descriptions in your README file and provide the paths to 
 
 1. Make sure you have Python 3 installed on your system.
 2. Install the required dependencies.
-3. Run `main.py` with the desired options.
+3. Run `script.py` with the desired options.
 
 Note that the `graphs.py` script is not meant to be run directly, as it contains functions that are imported and used by the `main.py` script.
 
