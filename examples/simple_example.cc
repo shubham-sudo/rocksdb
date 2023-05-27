@@ -265,7 +265,6 @@ void printStats(DB* db, Options& options) {
 }
 
 void configCompactionOptions(Options& op) {
-
     op.create_if_missing = true;
 
     // toggle auto compaction
@@ -274,7 +273,7 @@ void configCompactionOptions(Options& op) {
 
     // Memory allocation options
     op.write_buffer_size = 512 * 1024;
-    op.max_write_buffer_number = 2;  // max number of memtables in memory
+    op.max_write_buffer_number = 1;  // max number of memtables in memory
     op.memtable_factory = std::shared_ptr<SkipListFactory>(new SkipListFactory);  // hard coding to skiplist
 
     // compaction options
@@ -282,14 +281,14 @@ void configCompactionOptions(Options& op) {
     op.compaction_filter = nullptr;
     op.compaction_filter_factory = nullptr;
     op.access_hint_on_compaction_start = DBOptions::AccessHint::NONE;
-    op.level0_file_num_compaction_trigger = 2;
+    op.level0_file_num_compaction_trigger = 1;
 
     op.target_file_size_base = 512 * 1024;  // file size in level base, usually level-1)
-    op.target_file_size_multiplier = 2;
+    op.target_file_size_multiplier = 1;
     op.max_background_jobs = 4;
     // op.max_compaction_bytes = op.target_file_size_base * 25;  // Set to default
-    op.max_bytes_for_level_base = op.write_buffer_size;  // same as write buffer size
-    op.max_bytes_for_level_multiplier = 2;
+    // op.max_bytes_for_level_base = op.write_buffer_size;  // same as write buffer size
+    // op.max_bytes_for_level_multiplier = 1;
     // op.merge_operator;
     // op.soft_pending_compaction_bytes_limit;
     // op.hard_pending_compaction_bytes_limit;
@@ -298,7 +297,6 @@ void configCompactionOptions(Options& op) {
 
     // statistics
     op.statistics = CreateDBStatistics();
-
 }
 
 int main(int argc, char* argv[]) {
