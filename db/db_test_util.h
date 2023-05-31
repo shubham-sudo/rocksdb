@@ -1192,6 +1192,8 @@ class DBTestBase : public testing::Test {
 
   size_t TotalLiveFiles(int cf = 0);
 
+  size_t TotalLiveFilesAtPath(int cf, const std::string& path);
+
   size_t CountLiveFiles();
 
   int NumTableFilesAtLevel(int level, int cf = 0);
@@ -1314,6 +1316,10 @@ class DBTestBase : public testing::Test {
 
   uint64_t TestGetAndResetTickerCount(const Options& options,
                                       Tickers ticker_type) {
+    return options.statistics->getAndResetTickerCount(ticker_type);
+  }
+  // Short name for TestGetAndResetTickerCount
+  uint64_t PopTicker(const Options& options, Tickers ticker_type) {
     return options.statistics->getAndResetTickerCount(ticker_type);
   }
 

@@ -553,6 +553,11 @@ class DBImpl : public DB {
       const ExportImportFilesMetaData& metadata,
       ColumnFamilyHandle** handle) override;
 
+  using DB::ClipColumnFamily;
+  virtual Status ClipColumnFamily(ColumnFamilyHandle* column_family,
+                                  const Slice& begin_key,
+                                  const Slice& end_key) override;
+
   using DB::VerifyFileChecksums;
   Status VerifyFileChecksums(const ReadOptions& read_options) override;
 
@@ -753,13 +758,17 @@ class DBImpl : public DB {
   // max_file_num_to_ignore allows bottom level compaction to filter out newly
   // compacted SST files. Setting max_file_num_to_ignore to kMaxUint64 will
   // disable the filtering
+  // If `final_output_level` is not nullptr, it is set to manual compaction's
+  // output level if returned status is OK, and it may or may not be set to
+  // manual compaction's output level if returned status is not OK.
   Status RunManualCompaction(ColumnFamilyData* cfd, int input_level,
                              int output_level,
                              const CompactRangeOptions& compact_range_options,
                              const Slice* begin, const Slice* end,
                              bool exclusive, bool disallow_trivial_move,
                              uint64_t max_file_num_to_ignore,
-                             const std::string& trim_ts);
+                             const std::string& trim_ts,
+                             int* final_output_level = nullptr);
 
   // Return an internal iterator over the current state of the database.
   // The keys of this iterator are internal keys (see format.h).
@@ -1068,10 +1077,8 @@ class DBImpl : public DB {
 
   VersionSet* GetVersionSet() const { return versions_.get(); }
 
-  // Wait for any compaction
-  // We add a bool parameter to wait for unscheduledCompactions_ == 0, but this
-  // is only for the special test of CancelledCompactions
-  Status WaitForCompact(bool waitUnscheduled = false);
+  Status WaitForCompact(
+      const WaitForCompactOptions& wait_for_compact_options) override;
 
 #ifndef NDEBUG
   // Compact any files in the named level that overlap [*begin, *end]
@@ -1110,10 +1117,9 @@ class DBImpl : public DB {
   // Wait for memtable compaction
   Status TEST_WaitForFlushMemTable(ColumnFamilyHandle* column_family = nullptr);
 
-  // Wait for any compaction
-  // We add a bool parameter to wait for unscheduledCompactions_ == 0, but this
-  // is only for the special test of CancelledCompactions
-  Status TEST_WaitForCompact(bool waitUnscheduled = false);
+  Status TEST_WaitForCompact();
+  Status TEST_WaitForCompact(
+      const WaitForCompactOptions& wait_for_compact_options);
 
   // Wait for any background purge
   Status TEST_WaitForPurge();
@@ -1422,6 +1428,9 @@ class DBImpl : public DB {
 
   void NotifyOnExternalFileIngested(
       ColumnFamilyData* cfd, const ExternalSstFileIngestionJob& ingestion_job);
+
+  Status FlushAllColumnFamilies(const FlushOptions& flush_options,
+                                FlushReason flush_reason);
 
   virtual Status FlushForGetLiveFiles();
 
@@ -2142,7 +2151,7 @@ class DBImpl : public DB {
 
   // helper function to call after some of the logs_ were synced
   void MarkLogsSynced(uint64_t up_to, bool synced_dir, VersionEdit* edit);
-  Status ApplyWALToManifest(VersionEdit* edit);
+  Status ApplyWALToManifest(const ReadOptions& read_options, VersionEdit* edit);
   // WALs with log number up to up_to are not synced successfully.
   void MarkLogsNotSynced(uint64_t up_to);
 
@@ -2325,7 +2334,7 @@ class DBImpl : public DB {
   // logfile_number_. With two_write_queues it also protects alive_log_files_,
   // and log_empty_. Refer to the definition of each variable below for more
   // details.
-  // Note: to avoid dealock, if needed to acquire both log_write_mutex_ and
+  // Note: to avoid deadlock, if needed to acquire both log_write_mutex_ and
   // mutex_, the order should be first mutex_ and then log_write_mutex_.
   InstrumentedMutex log_write_mutex_;
 

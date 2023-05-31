@@ -44,16 +44,19 @@ Status ImportColumnFamilyJob::Prepare(uint64_t next_file_number,
 
   auto num_files = files_to_import_.size();
   if (num_files == 0) {
-    return Status::InvalidArgument("The list of files is empty");
+    status = Status::InvalidArgument("The list of files is empty");
+    return status;
   }
 
   for (const auto& f : files_to_import_) {
     if (f.num_entries == 0) {
-      return Status::InvalidArgument("File contain no entries");
+      status = Status::InvalidArgument("File contain no entries");
+      return status;
     }
 
     if (!f.smallest_internal_key.Valid() || !f.largest_internal_key.Valid()) {
-      return Status::Corruption("File has corrupted keys");
+      status = Status::Corruption("File has corrupted keys");
+      return status;
     }
   }
 
@@ -135,6 +138,16 @@ Status ImportColumnFamilyJob::Run() {
     const auto& f = files_to_import_[i];
     const auto& file_metadata = metadata_[i];
 
+    uint64_t tail_size = 0;
+    bool contain_no_data_blocks = f.table_properties.num_entries > 0 &&
+                                  (f.table_properties.num_entries ==
+                                   f.table_properties.num_range_deletions);
+    if (f.table_properties.tail_start_offset > 0 || contain_no_data_blocks) {
+      uint64_t file_size = f.fd.GetFileSize();
+      assert(f.table_properties.tail_start_offset <= file_size);
+      tail_size = file_size - f.table_properties.tail_start_offset;
+    }
+
     VersionEdit dummy_version_edit;
     dummy_version_edit.AddFile(
         file_metadata.level, f.fd.GetNumber(), f.fd.GetPathId(),
@@ -142,7 +155,7 @@ Status ImportColumnFamilyJob::Run() {
         file_metadata.smallest_seqno, file_metadata.largest_seqno, false,
         file_metadata.temperature, kInvalidBlobFileNumber, oldest_ancester_time,
         current_time, file_metadata.epoch_number, kUnknownFileChecksum,
-        kUnknownFileChecksumFuncName, f.unique_id, 0);
+        kUnknownFileChecksumFuncName, f.unique_id, 0, tail_size);
     s = dummy_version_builder.Apply(&dummy_version_edit);
   }
   if (s.ok()) {
@@ -247,6 +260,7 @@ Status ImportColumnFamilyJob::GetIngestedFileInfo(
       TableReaderOptions(
           *cfd_->ioptions(), sv->mutable_cf_options.prefix_extractor,
           env_options_, cfd_->internal_comparator(),
+          sv->mutable_cf_options.block_protection_bytes_per_key,
           /*skip_filters*/ false, /*immortal*/ false,
           /*force_direct_prefetch*/ false, /*level*/ -1,
           /*block_cache_tracer*/ nullptr,
@@ -272,6 +286,7 @@ Status ImportColumnFamilyJob::GetIngestedFileInfo(
   // in file_meta.
   if (file_meta.smallest.empty()) {
     assert(file_meta.largest.empty());
+    // TODO: plumb Env::IOActivity
     ReadOptions ro;
     std::unique_ptr<InternalIterator> iter(table_reader->NewIterator(
         ro, sv->mutable_cf_options.prefix_extractor.get(), /*arena=*/nullptr,
@@ -299,15 +314,24 @@ Status ImportColumnFamilyJob::GetIngestedFileInfo(
           return Status::Corruption("Corrupted key in external file. ",
                                     pik_status.getState());
         }
-        RangeTombstone tombstone(key, range_del_iter->value());
-        InternalKey start_key = tombstone.SerializeKey();
+        RangeTombstone first_tombstone(key, range_del_iter->value());
+        InternalKey start_key = first_tombstone.SerializeKey();
         const InternalKeyComparator* icmp = &cfd_->internal_comparator();
         if (!bound_set ||
             icmp->Compare(start_key, file_to_import->smallest_internal_key) <
                 0) {
           file_to_import->smallest_internal_key = start_key;
         }
-        InternalKey end_key = tombstone.SerializeEndKey();
+
+        range_del_iter->SeekToLast();
+        pik_status = ParseInternalKey(range_del_iter->key(), &key,
+                                      db_options_.allow_data_in_errors);
+        if (!pik_status.ok()) {
+          return Status::Corruption("Corrupted key in external file. ",
+                                    pik_status.getState());
+        }
+        RangeTombstone last_tombstone(key, range_del_iter->value());
+        InternalKey end_key = last_tombstone.SerializeEndKey();
         if (!bound_set ||
             icmp->Compare(end_key, file_to_import->largest_internal_key) > 0) {
           file_to_import->largest_internal_key = end_key;
@@ -338,4 +362,3 @@ Status ImportColumnFamilyJob::GetIngestedFileInfo(
   return status;
 }
 }  // namespace ROCKSDB_NAMESPACE
-

@@ -9,8 +9,9 @@
 #include <cstddef>
 #include <memory>
 
+#include "cache/cache_reservation_manager.h"
 #include "cache/lru_cache.h"
-#include "memory/memory_allocator.h"
+#include "memory/memory_allocator_impl.h"
 #include "rocksdb/secondary_cache.h"
 #include "rocksdb/slice.h"
 #include "rocksdb/status.h"
@@ -69,18 +70,8 @@ class CompressedSecondaryCacheResultHandle : public SecondaryCacheResultHandle {
 
 class CompressedSecondaryCache : public SecondaryCache {
  public:
-  CompressedSecondaryCache(
-      size_t capacity, int num_shard_bits, bool strict_capacity_limit,
-      double high_pri_pool_ratio, double low_pri_pool_ratio,
-      std::shared_ptr<MemoryAllocator> memory_allocator = nullptr,
-      bool use_adaptive_mutex = kDefaultToAdaptiveMutex,
-      CacheMetadataChargePolicy metadata_charge_policy =
-          kDefaultCacheMetadataChargePolicy,
-      CompressionType compression_type = CompressionType::kLZ4Compression,
-      uint32_t compress_format_version = 2,
-      bool enable_custom_split_merge = false,
-      const CacheEntryRoleSet& do_not_compress_roles = {
-          CacheEntryRole::kFilterBlock});
+  explicit CompressedSecondaryCache(
+      const CompressedSecondaryCacheOptions& opts);
   ~CompressedSecondaryCache() override;
 
   const char* Name() const override { return "CompressedSecondaryCache"; }
@@ -103,7 +94,13 @@ class CompressedSecondaryCache : public SecondaryCache {
 
   Status GetCapacity(size_t& capacity) override;
 
+  Status Deflate(size_t decrease) override;
+
+  Status Inflate(size_t increase) override;
+
   std::string GetPrintableOptions() const override;
+
+  size_t TEST_GetUsage() { return cache_->GetUsage(); }
 
  private:
   friend class CompressedSecondaryCacheTestBase;
@@ -137,6 +134,7 @@ class CompressedSecondaryCache : public SecondaryCache {
   std::shared_ptr<Cache> cache_;
   CompressedSecondaryCacheOptions cache_options_;
   mutable port::Mutex capacity_mutex_;
+  std::shared_ptr<ConcurrentCacheReservationManager> cache_res_mgr_;
 };
 
 }  // namespace ROCKSDB_NAMESPACE
