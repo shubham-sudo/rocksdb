@@ -10,4 +10,5 @@ simple_example
 transaction_example
 
 # logs
-examples/**.log
+**.txt
+**.log
