@@ -213,20 +213,20 @@ void runWorkload(Options& op, WriteOptions& write_op, ReadOptions& read_op, int 
 }
 
 // Helper function to filter specific lines from a multiline string
-std::string filter_stats(const std::string &input, const std::vector<std::string> &keywords) {
-  std::stringstream ss(input);
-  std::string line;
-  std::stringstream filtered;
-  while (std::getline(ss, line)) {
-    for (const auto &keyword : keywords) {
-      if (line.find(keyword) != std::string::npos) {
-        filtered << line << std::endl;
-        break;
-      }
-    }
-  }
-  return filtered.str();
-}
+// std::string filter_stats(const std::string &input, const std::vector<std::string> &keywords) {
+//   std::stringstream ss(input);
+//   std::string line;
+//   std::stringstream filtered;
+//   while (std::getline(ss, line)) {
+//     for (const auto &keyword : keywords) {
+//       if (line.find(keyword) != std::string::npos) {
+//         filtered << line << std::endl;
+//         break;
+//       }
+//     }
+//   }
+//   return filtered.str();
+// }
 
 void printStats(DB* db, Options& options) {
     std::string each_level_stats;
@@ -249,18 +249,19 @@ void printStats(DB* db, Options& options) {
     std::string all_stats = options.statistics->ToString();
 
     // Filter specific statistics
-    std::vector<std::string> keywords = {
-        "rocksdb.compaction.times.micros",
-        "rocksdb.db.iter.bytes.read",
-        "rocksdb.no.file.opens",
-        "rocksdb.db.seek.micros"
-    };
+    // std::vector<std::string> keywords = {
+    //     "rocksdb.compaction.times.micros",
+    //     "rocksdb.db.iter.bytes.read",
+    //     "rocksdb.no.file.opens",
+    //     "rocksdb.db.seek.micros"
+    // };
 
-    std::string filtered_stats = filter_stats(all_stats, keywords);
+    // std::string filtered_stats = filter_stats(all_stats, keywords);
 
     std::cout << std::endl;
     std::cout << "RocksDB Statistics : " << std::endl;
-    std::cout << filtered_stats << std::endl;
+    // std::cout << filtered_stats << std::endl;
+    std::cout << all_stats << std::endl;
     std::cout << "----------------------------------------" << std::endl;
 }
 
@@ -287,8 +288,8 @@ void configCompactionOptions(Options& op) {
     op.target_file_size_multiplier = 1;
     op.max_background_jobs = 4;
     // op.max_compaction_bytes = op.target_file_size_base * 25;  // Set to default
-    // op.max_bytes_for_level_base = op.write_buffer_size;  // same as write buffer size
-    // op.max_bytes_for_level_multiplier = 1;
+    op.max_bytes_for_level_base = op.write_buffer_size;  // same as write buffer size
+    op.max_bytes_for_level_multiplier = 10;
     // op.merge_operator;
     // op.soft_pending_compaction_bytes_limit;
     // op.hard_pending_compaction_bytes_limit;

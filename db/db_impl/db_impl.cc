@@ -6012,6 +6012,7 @@ void DBImpl::RangeQueryDrivenCompaction(Slice& start_key, Slice& end_key) {
       }
     }
     CompactionOptions coptions;
+    coptions.output_file_size_limit = 512 * 1024;  // setting output file size to 512KB
     Status status = this->CompactFiles(coptions, input_file_names, level_to_write_at);
   }
 }
