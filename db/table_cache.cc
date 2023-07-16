@@ -111,13 +111,17 @@ Status TableCache::GetTableReader(
     RecordTick(ioptions_.stats, NO_FILE_OPENS);
   } else if (s.IsPathNotFound()) {
     fname = Rocks2LevelTableFileName(fname);
-    s = PrepareIOFromReadOptions(ro, ioptions_.clock, fopts.io_options);
-    if (s.ok()) {
-      s = ioptions_.fs->NewRandomAccessFile(fname, file_options, &file,
-                                            nullptr);
+    // If this file is also not found, we want to use the error message
+    // that contains the table file name which is less confusing.
+    Status temp_s =
+        PrepareIOFromReadOptions(ro, ioptions_.clock, fopts.io_options);
+    if (temp_s.ok()) {
+      temp_s = ioptions_.fs->NewRandomAccessFile(fname, file_options, &file,
+                                                 nullptr);
     }
-    if (s.ok()) {
+    if (temp_s.ok()) {
       RecordTick(ioptions_.stats, NO_FILE_OPENS);
+      s = temp_s;
     }
   }
 
@@ -146,7 +150,8 @@ Status TableCache::GetTableReader(
             false /* force_direct_prefetch */, level, block_cache_tracer_,
             max_file_size_for_l0_meta_pin, db_session_id_,
             file_meta.fd.GetNumber(), expected_unique_id,
-            file_meta.fd.largest_seqno, file_meta.tail_size),
+            file_meta.fd.largest_seqno, file_meta.tail_size,
+            file_meta.user_defined_timestamps_persisted),
         std::move(file_reader), file_meta.fd.GetFileSize(), table_reader,
         prefetch_index_and_filter_in_cache);
     TEST_SYNC_POINT("TableCache::GetTableReader:0");

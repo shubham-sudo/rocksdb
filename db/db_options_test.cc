@@ -582,6 +582,7 @@ TEST_F(DBOptionsTest, EnableAutoCompactionAndTriggerStall) {
 
 TEST_F(DBOptionsTest, SetOptionsMayTriggerCompaction) {
   Options options;
+  options.level_compaction_dynamic_level_bytes = false;
   options.create_if_missing = true;
   options.level0_file_num_compaction_trigger = 1000;
   options.env = env_;
@@ -879,9 +880,13 @@ TEST_F(DBOptionsTest, SanitizeFIFOPeriodicCompaction) {
   Options options;
   options.compaction_style = kCompactionStyleFIFO;
   options.env = CurrentOptions().env;
+  // Default value allows RocksDB to set ttl to 30 days.
+  ASSERT_EQ(30 * 24 * 60 * 60, dbfull()->GetOptions().ttl);
+
+  // Disable
   options.ttl = 0;
   Reopen(options);
-  ASSERT_EQ(30 * 24 * 60 * 60, dbfull()->GetOptions().ttl);
+  ASSERT_EQ(0, dbfull()->GetOptions().ttl);
 
   options.ttl = 100;
   Reopen(options);
@@ -891,15 +896,12 @@ TEST_F(DBOptionsTest, SanitizeFIFOPeriodicCompaction) {
   Reopen(options);
   ASSERT_EQ(100 * 24 * 60 * 60, dbfull()->GetOptions().ttl);
 
-  options.ttl = 200;
-  options.periodic_compaction_seconds = 300;
-  Reopen(options);
-  ASSERT_EQ(200, dbfull()->GetOptions().ttl);
-
+  // periodic_compaction_seconds should have no effect
+  // on FIFO compaction.
   options.ttl = 500;
   options.periodic_compaction_seconds = 300;
   Reopen(options);
-  ASSERT_EQ(300, dbfull()->GetOptions().ttl);
+  ASSERT_EQ(500, dbfull()->GetOptions().ttl);
 }
 
 TEST_F(DBOptionsTest, SetFIFOCompactionOptions) {

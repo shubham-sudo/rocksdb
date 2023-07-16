@@ -1198,11 +1198,11 @@ struct DBOptions {
   // Set this option to true during creation of database if you want
   // to be able to ingest behind (call IngestExternalFile() skipping keys
   // that already exist, rather than overwriting matching keys).
-  // Setting this option to true will affect 2 things:
-  // 1) Disable some internal optimizations around SST file compression
-  // 2) Reserve bottom-most level for ingested files only.
-  // Note that only universal compaction supports reserving last level
-  // for file ingestion only.
+  // Setting this option to true has the following effects:
+  // 1) Disable some internal optimizations around SST file compression.
+  // 2) Reserve the last level for ingested files only.
+  // 3) Compaction will not include any file from the last level.
+  // Note that only Universal Compaction supports allow_ingest_behind.
   // `num_levels` should be >= 3 if this option is turned on.
   //
   //
@@ -1817,15 +1817,18 @@ struct CompactionOptions {
 // For level based compaction, we can configure if we want to skip/force
 // bottommost level compaction.
 enum class BottommostLevelCompaction {
-  // Skip bottommost level compaction
+  // Skip bottommost level compaction.
   kSkip,
-  // Only compact bottommost level if there is a compaction filter
-  // This is the default option
+  // Only compact bottommost level if there is a compaction filter.
+  // This is the default option.
+  // Similar to kForceOptimized, when compacting bottommost level, avoid
+  // double-compacting files
+  // created in the same manual compaction.
   kIfHaveCompactionFilter,
-  // Always compact bottommost level
+  // Always compact bottommost level.
   kForce,
   // Always compact bottommost level but in bottommost level avoid
-  // double-compacting files created in the same compaction
+  // double-compacting files created in the same compaction.
   kForceOptimized,
 };
 
